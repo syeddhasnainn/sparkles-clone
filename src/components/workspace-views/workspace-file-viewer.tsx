@@ -33,7 +33,7 @@ export default function WorkspaceFileViewer({ file }: { file: WorkspaceFile }) {
   );
 }
 
-function FileContent({
+export function FileContent({
   file,
   mode,
   split,
@@ -67,7 +67,7 @@ function FileContent({
     <MultiFileDiff
       oldFile={{ name: file.path, contents: file.before ?? "" }}
       newFile={{ name: file.path, contents: file.after ?? "" }}
-      options={{ ...options, diffStyle: split ? "split" : "unified", overflow: "scroll" }}
+      options={{ ...options, diffStyle: split ? "split" : "unified", overflow: "wrap" }}
     />
   );
 }

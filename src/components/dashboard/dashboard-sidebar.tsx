@@ -1,6 +1,5 @@
 import { AppIcon } from "../ui/app-icon";
 import { Link } from "@tanstack/react-router";
-import ChevronDown from "@hugeicons/core-free-icons/ArrowDown01Icon";
 import Eye from "@hugeicons/core-free-icons/ViewIcon";
 import FolderPlus from "@hugeicons/core-free-icons/FolderAddIcon";
 import Plus from "@hugeicons/core-free-icons/Add01Icon";
@@ -25,6 +24,9 @@ export function DashboardSidebar({
         <Link to="/app" aria-label="Sparkles dashboard" onClick={onNavigate}>
           <img src="/brand/sparkles.svg" alt="Sparkles" />
         </Link>
+        <button className="folder-button" aria-label="New folder" disabled>
+          <AppIcon icon={FolderPlus} size={14} />
+        </button>
         <button
           className="icon-button sidebar-toggle"
           onClick={onToggle}
@@ -39,13 +41,7 @@ export function DashboardSidebar({
             <AppIcon icon={Plus} size={14} />
             New chat
           </Link>
-          <button className="new-chat-chevron" aria-label="Start chat in another project" disabled>
-            <AppIcon icon={ChevronDown} size={14} />
-          </button>
         </div>
-        <button className="folder-button" aria-label="New folder" disabled>
-          <AppIcon icon={FolderPlus} size={14} />
-        </button>
       </div>
       <div className="sidebar-content">
         <nav aria-label="Dashboard navigation" className="sidebar-nav">

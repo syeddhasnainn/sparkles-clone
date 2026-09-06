@@ -7,10 +7,17 @@ import type { ToolCall } from "./tool-activity";
 import type { Events } from "./task-types";
 
 function conversation(events: Events) {
-  const messages: { id: string; role: string; text: string; tool?: ToolCall }[] = [];
+  const messages: {
+    id: string;
+    role: string;
+    text: string;
+    timestamp?: number;
+    tool?: ToolCall;
+  }[] = [];
   const tools = new Map(toolCalls(events).map((call) => [call.eventId, call]));
   let response = "";
   let messageId: unknown;
+  let responseTime: number | undefined;
   for (const event of events) {
     const tool = tools.get(event.id);
     const boundary =
@@ -19,8 +26,14 @@ function conversation(events: Events) {
         event.type,
       );
     if (boundary && response) {
-      messages.push({ id: `${event.id}:assistant`, role: "OpenCode", text: response });
+      messages.push({
+        id: `${event.id}:assistant`,
+        role: "OpenCode",
+        text: response,
+        timestamp: responseTime,
+      });
       response = "";
+      responseTime = undefined;
       messageId = undefined;
     }
     if (tool) messages.push({ id: tool.id, role: "", text: "", tool });
@@ -31,19 +44,26 @@ function conversation(events: Events) {
         .object({ type: z.literal("text"), text: z.string() })
         .safeParse(event.data.content);
       if (content.success) {
+        if (!response) responseTime = event.timestamp;
         if (response && messageId && event.data.messageId !== messageId) response += "\n\n";
         response += content.data.text;
         messageId = event.data.messageId;
       }
     }
-    if (["error", "interrupted", "workspace_stopped", "restored"].includes(event.type))
+    if (["error", "interrupted"].includes(event.type))
       messages.push({
         id: `${event.id}:system`,
         role: "Workspace",
         text: String(event.data.message),
       });
   }
-  if (response) messages.push({ id: "current-response", role: "OpenCode", text: response });
+  if (response)
+    messages.push({
+      id: "current-response",
+      role: "OpenCode",
+      text: response,
+      timestamp: responseTime,
+    });
   return messages;
 }
 export function Conversation({
@@ -70,7 +90,27 @@ export function Conversation({
             }
             aria-label={message.role}
           >
-            {message.role === "OpenCode" && <strong>{message.role}</strong>}
+            {message.role === "OpenCode" && (
+              <>
+                <img className="task-assistant-avatar" src="/brand/opencode.svg" alt="" />
+                <div className="task-assistant-meta">
+                  <strong>OpenCode</strong>
+                  {message.timestamp && (
+                    <time
+                      dateTime={new Date(message.timestamp).toISOString()}
+                      title={new Date(message.timestamp).toLocaleString()}
+                      suppressHydrationWarning
+                    >
+                      {new Date(message.timestamp).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        hour12: false,
+                      })}
+                    </time>
+                  )}
+                </div>
+              </>
+            )}
             {message.role === "OpenCode" ? (
               <Streamdown
                 className="task-message-markdown"

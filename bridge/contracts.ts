@@ -34,6 +34,7 @@ export const agentCommandSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("permission"), id: z.uuid(), optionId: z.string().min(1).max(256) }),
 ]);
 export const agentEventSchema = z.object({
+  timestamp: z.number().int().positive().optional(),
   id: z.number().int().positive(),
   type: z.string(),
   data: z.record(z.string(), z.unknown()),
