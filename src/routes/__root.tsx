@@ -1,3 +1,4 @@
+import { AuthKitProvider } from "@workos/authkit-tanstack-react-start/client";
 import { HeadContent, Scripts, createRootRoute } from "@tanstack/react-router";
 
 import { themeScript } from "@/components/settings/theme-script";
@@ -43,7 +44,9 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body>
-        <PreferencesProvider>{children}</PreferencesProvider>
+        <AuthKitProvider>
+          <PreferencesProvider>{children}</PreferencesProvider>
+        </AuthKitProvider>
         <Scripts />
       </body>
     </html>
