@@ -1,0 +1,336 @@
+import { describe, expect, it, vi } from "vitest";
+import type { SavedCheckpoint, SessionStore } from "./session-store";
+import { WorkspaceController } from "./controller";
+import type { WorkspaceDependencies, WorkspaceRecord, WorkspaceStorage } from "./controller";
+import type { AgentSnapshot, CreateWorkspace } from "../../../bridge/contracts";
+
+function harness() {
+  const records = new Map<string, WorkspaceRecord>();
+  const storage: WorkspaceStorage = {
+    get: async (key) => structuredClone(records.get(key)),
+    put: async (key, record) => {
+      records.set(key, structuredClone(record));
+    },
+    list: async () => structuredClone(records),
+    setAlarm: vi.fn(async () => {}),
+    deleteAlarm: vi.fn(async () => {}),
+    transaction: async (callback) => callback(storage),
+  };
+  const histories = new Map<string, AgentSnapshot>();
+  const backups = new Map<string, SavedCheckpoint[]>();
+  const sessions: SessionStore = {
+    ensure: async (owner) => {
+      if (!histories.has(owner.taskId))
+        histories.set(owner.taskId, { status: "starting", events: [], cursor: 0, head: 0 });
+    },
+    beginRun: async (owner) => {
+      histories.get(owner.taskId)!.status = "starting";
+    },
+    read: async (owner, cursor) => {
+      const state = histories.get(owner.taskId)!;
+      const events = state.events.filter((event) => event.id > cursor);
+      return {
+        ...state,
+        events,
+        cursor: events.at(-1)?.id ?? Math.min(cursor, state.cursor),
+        head: state.cursor,
+      };
+    },
+    saveEvents: async (owner, snapshot) => {
+      const state = histories.get(owner.taskId)!;
+      histories.set(owner.taskId, {
+        ...snapshot,
+        events: [...state.events, ...snapshot.events.filter((event) => event.id > state.cursor)],
+      });
+      return snapshot.cursor;
+    },
+    reservePrompt: vi.fn(async () => {}),
+    finish: async (owner, interrupted) => {
+      histories.get(owner.taskId)!.status = interrupted ? "interrupted" : "stopped";
+    },
+    latestCheckpoint: async (owner) => backups.get(owner.taskId)?.[0] ?? null,
+    saveCheckpoint: async (owner, checkpoint) => {
+      backups.set(owner.taskId, [checkpoint, ...(backups.get(owner.taskId) || [])]);
+    },
+    checkpoints: async (owner) => backups.get(owner.taskId) || [],
+    deleteCheckpoint: async (owner, id) => {
+      backups.set(
+        owner.taskId,
+        (backups.get(owner.taskId) || []).filter((item) => item.metadata.id !== id),
+      );
+    },
+  };
+  const execute = vi.fn<ReturnType<WorkspaceDependencies["provider"]>["execute"]>(
+    async (request) => ({
+      running: true,
+      sandboxId: "sb-test",
+      commit: "a".repeat(40),
+      agent: {
+        status:
+          request.action === "agent" && request.command.kind === "prompt" ? "running" : "idle",
+        sessionId: "test-session",
+        events: [],
+        cursor: request.action === "sync" ? request.cursor : 0,
+        head: request.action === "sync" ? request.cursor : 0,
+      },
+    }),
+  );
+  const dependencies: WorkspaceDependencies = {
+    authorize: vi.fn(async (_userId, repository) => repository),
+    checkoutToken: vi.fn(async () => "secret-token"),
+    sessions,
+    checkpoints: {
+      put: async (_owner, archive) => ({ key: archive.metadata.id, metadata: archive.metadata }),
+      get: async () => new Blob(["checkpoint"]).stream(),
+      delete: async () => {},
+    },
+    provider: (id) => ({
+      execute,
+      checkpoint: async (request) => ({
+        metadata: {
+          id: request.id,
+          sessionId: "test-session",
+          cursor: histories.get(id)?.cursor || 0,
+          createdAt: Date.now(),
+          size: 10,
+          sha256: "0".repeat(64),
+          interrupted: false,
+        },
+        body: new Blob(["checkpoint"]).stream(),
+      }),
+      restore: vi.fn(async () => {}),
+    }),
+  };
+  return {
+    controller: new WorkspaceController(storage, dependencies),
+    storage,
+    dependencies,
+    execute,
+    records,
+    histories,
+    backups,
+  };
+}
+
+function input(): CreateWorkspace {
+  return {
+    requestId: crypto.randomUUID(),
+    prompt: "Add search",
+    repository: { id: 1, installationId: 2, name: "owner/repo", defaultBranch: "main" },
+  };
+}
+
+describe("workspace lifecycle", () => {
+  it("deduplicates a request and limits simultaneous workspaces", async () => {
+    const { controller } = harness();
+    const request = input();
+    const first = await controller.start("user", request);
+    expect(await controller.start("user", request)).toEqual(first);
+    await controller.start("user", input());
+    await controller.start("user", input());
+    await expect(controller.start("user", input())).rejects.toThrow("three");
+    expect(await controller.list()).toHaveLength(3);
+  });
+
+  it("reauthorizes before checkout and never persists or returns credentials", async () => {
+    const { controller, records, dependencies } = harness();
+    await controller.start("user", input());
+    await controller.alarm();
+    expect(dependencies.authorize).toHaveBeenCalledWith("user", expect.objectContaining({ id: 1 }));
+    const [workspace] = await controller.list();
+    expect(workspace.status).toBe("ready");
+    expect(workspace).not.toHaveProperty("userId");
+    expect(JSON.stringify([...records.values()])).not.toContain("secret-token");
+  });
+
+  it("honors cancellation received while provisioning is in flight", async () => {
+    const { controller, execute } = harness();
+    const workspace = await controller.start("user", input());
+    execute.mockImplementationOnce(async () => {
+      await controller.stop(workspace.id);
+      return { running: true, sandboxId: "sb-test", commit: null };
+    });
+    await controller.alarm();
+    expect(execute).toHaveBeenLastCalledWith({ action: "stop", name: `sparkles-${workspace.id}` });
+    expect((await controller.list())[0].status).toBe("stopped");
+  });
+
+  it("cleans up a possibly created sandbox after repeated errors", async () => {
+    const { controller, execute, records } = harness();
+    await controller.start("user", input());
+    execute.mockRejectedValueOnce(new Error("provider secret detail"));
+    execute.mockRejectedValueOnce(new Error("provider secret detail"));
+    execute.mockRejectedValueOnce(new Error("provider secret detail"));
+    await controller.alarm();
+    for (const record of records.values()) record.retryAt = 0;
+    await controller.alarm();
+    for (const record of records.values()) record.retryAt = 0;
+    await controller.alarm();
+    expect((await controller.list())[0].status).toBe("stopping");
+    for (const record of records.values()) record.retryAt = 0;
+    await controller.alarm();
+    expect(execute).toHaveBeenLastCalledWith(expect.objectContaining({ action: "stop" }));
+    expect((await controller.list())[0].status).toBe("failed");
+    expect(JSON.stringify(await controller.list())).not.toContain("provider secret detail");
+  });
+
+  it("does not create a sandbox when repository access was revoked", async () => {
+    const { controller, dependencies, execute } = harness();
+    await controller.start("user", input());
+    dependencies.authorize = async () => {
+      throw new Error("access revoked");
+    };
+    await controller.alarm();
+    expect(execute).not.toHaveBeenCalled();
+    expect(dependencies.checkoutToken).not.toHaveBeenCalled();
+  });
+
+  it("stops expired workspaces and rejects unknown workspace IDs", async () => {
+    const { controller, records, execute } = harness();
+    const workspace = await controller.start("user", input());
+    await controller.alarm();
+    records.get(`workspace:${workspace.id}`)!.expiresAt = 0;
+    await controller.alarm();
+    expect(execute).toHaveBeenLastCalledWith({ action: "stop", name: `sparkles-${workspace.id}` });
+    expect((await controller.list())[0].status).toBe("stopped");
+    await expect(controller.stop(crypto.randomUUID())).rejects.toThrow("not found");
+  });
+
+  it("backs off retries instead of repeatedly creating during an outage", async () => {
+    const { controller, execute } = harness();
+    await controller.start("user", input());
+    execute.mockRejectedValue(new Error("offline"));
+    await controller.alarm();
+    await controller.alarm();
+    expect(execute).toHaveBeenCalledTimes(1);
+  });
+
+  it("reconciles externally terminated sandboxes without recreating them", async () => {
+    const { controller, execute, records } = harness();
+    await controller.start("user", input());
+    await controller.alarm();
+    for (const record of records.values()) {
+      record.retryAt = 0;
+      record.agentStarted = true;
+    }
+    execute.mockResolvedValueOnce({ running: false, sandboxId: null, commit: null });
+    await controller.alarm();
+    expect(execute).toHaveBeenLastCalledWith(expect.objectContaining({ action: "sync" }));
+    expect((await controller.list())[0].status).toBe("stopped");
+  });
+
+  it("keeps a ready workspace when a status check fails", async () => {
+    const { controller, execute, records } = harness();
+    await controller.start("user", input());
+    await controller.alarm();
+    for (const record of records.values()) {
+      record.retryAt = 0;
+      record.agentStarted = true;
+    }
+    execute.mockRejectedValueOnce(new Error("offline"));
+    await controller.alarm();
+    expect((await controller.list())[0].status).toBe("ready");
+    expect(execute).toHaveBeenLastCalledWith(expect.objectContaining({ action: "sync" }));
+  });
+  it("submits the saved prompt once after checkout is ready", async () => {
+    const { controller, execute, records } = harness();
+    const request = input();
+    const workspace = await controller.start("user", request);
+    await controller.alarm();
+    for (const record of records.values()) record.retryAt = 0;
+    await controller.alarm();
+    expect(execute).toHaveBeenLastCalledWith({
+      action: "agent",
+      name: `sparkles-${workspace.id}`,
+      command: { kind: "prompt", requestId: workspace.id, prompt: request.prompt },
+    });
+    for (const record of records.values()) record.retryAt = 0;
+    await controller.alarm();
+    expect(execute).toHaveBeenLastCalledWith(
+      expect.objectContaining({ action: "sync", name: `sparkles-${workspace.id}` }),
+    );
+  });
+
+  it("rejects agent commands for a missing or unready workspace", async () => {
+    const { controller, execute } = harness();
+    await expect(
+      controller.agent(crypto.randomUUID(), { kind: "events", cursor: 0 }),
+    ).rejects.toThrow("not found");
+    const workspace = await controller.start("user", input());
+    await expect(controller.agent(workspace.id, { kind: "cancel" })).rejects.toThrow("not ready");
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it("revokes checkout credentials even when checkout fails", async () => {
+    const { controller, dependencies, execute } = harness();
+    dependencies.revokeCheckoutToken = vi.fn(async () => {});
+    await controller.start("user", input());
+    execute.mockImplementation(async (request) => {
+      if (request.action === "create") throw new Error("Checkout failed");
+      return { running: true, sandboxId: "sb-test", commit: null };
+    });
+    await controller.alarm();
+    expect(dependencies.revokeCheckoutToken).toHaveBeenCalledWith("secret-token");
+  });
+  it("restores a stopped task in a fresh run without replaying the original prompt", async () => {
+    const { controller, records, execute, dependencies, backups } = harness();
+    const task = await controller.start("user", input());
+    await controller.alarm();
+    records.get(`workspace:${task.id}`)!.retryAt = 0;
+    await controller.alarm();
+    expect(backups.get(task.id)).toHaveLength(1);
+    await controller.stop(task.id);
+    await controller.alarm();
+    expect((await controller.agent(task.id, { kind: "events", cursor: 0 })).status).toBe("stopped");
+    expect((await controller.list())[0].canResume).toBe(true);
+    execute.mockClear();
+    const restore = vi.fn(async () => {});
+    const originalProvider = dependencies.provider;
+    dependencies.provider = (id) => ({ ...originalProvider(id), restore });
+    await controller.resume(task.id);
+    const runId = records.get(`workspace:${task.id}`)!.runId;
+    expect(runId).not.toBe(task.id);
+    await controller.alarm();
+    expect(restore).toHaveBeenCalledWith(
+      expect.objectContaining({ name: `sparkles-${runId}` }),
+      expect.any(ReadableStream),
+    );
+    expect(execute).toHaveBeenCalledWith({ action: "start", name: `sparkles-${runId}` });
+    expect(execute.mock.calls.some(([request]) => request.action === "agent")).toBe(false);
+    expect((await controller.list())[0].status).toBe("ready");
+  });
+
+  it("retains the last checkpoint and retries when a subsequent upload fails", async () => {
+    const { controller, records, dependencies, backups } = harness();
+    const task = await controller.start("user", input());
+    await controller.alarm();
+    records.get(`workspace:${task.id}`)!.retryAt = 0;
+    await controller.alarm();
+    const checkpoint = backups.get(task.id)![0];
+    dependencies.checkpoints.put = vi.fn(async () => {
+      throw new Error("upload interrupted");
+    });
+    await controller.stop(task.id);
+    await controller.alarm();
+    expect(backups.get(task.id)).toEqual([checkpoint]);
+    expect((await controller.list())[0]).toMatchObject({ status: "stopping", canResume: true });
+    expect(records.get(`workspace:${task.id}`)!.retryAt).toBeGreaterThan(Date.now());
+  });
+  it("terminates an unsuccessful restore without waiting for a runner that never started", async () => {
+    const { controller, records, execute } = harness();
+    const task = await controller.start("user", input());
+    const record = records.get(`workspace:${task.id}`)!;
+    Object.assign(record, {
+      status: "stopping",
+      restoring: true,
+      agentStarted: true,
+      terminalStatus: "failed",
+    });
+    await controller.alarm();
+    expect(execute).toHaveBeenCalledExactlyOnceWith({
+      action: "stop",
+      name: `sparkles-${task.id}`,
+    });
+    expect((await controller.list())[0].status).toBe("failed");
+  });
+});

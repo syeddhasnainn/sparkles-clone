@@ -1,12 +1,37 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "sparkles-demo",
-  "main": "@tanstack/react-start/server-entry",
+  "main": "src/worker.ts",
 
   "compatibility_date": "2026-09-06",
   "compatibility_flags": ["nodejs_compat"],
+  "dev": { "enable_containers": false },
 
   "observability": { "enabled": true, "head_sampling_rate": 1 },
+
+  "vars": {
+    "MODEL_GATEWAY_URL": "",
+    "MODAL_APP_NAME": "sparkles-workspaces",
+    "AGENT_MODEL": "openrouter/anthropic/claude-sonnet-4",
+  },
+  "containers": [
+    {
+      "class_name": "ModalBridge",
+      "image": "./bridge/Dockerfile",
+      "image_build_context": "./bridge",
+      "instance_type": "basic",
+      "max_instances": 4,
+    },
+  ],
+  "durable_objects": {
+    "bindings": [
+      { "name": "MODAL_BRIDGE", "class_name": "ModalBridge" },
+      { "name": "WORKSPACES", "class_name": "WorkspaceManager" },
+    ],
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["ModalBridge", "WorkspaceManager"] }],
+
+  "r2_buckets": [{ "binding": "CHECKPOINTS", "bucket_name": "sparkles-checkpoints" }],
 
   "d1_databases": [
     { "binding": "DB", "database_name": "sparkles-demo", "migrations_dir": "migrations" },
@@ -23,6 +48,11 @@
       "GITHUB_APP_SLUG",
       "GITHUB_REDIRECT_URI",
       "GITHUB_TOKEN_ENCRYPTION_KEY",
+      "GITHUB_APP_ID",
+      "GITHUB_APP_PRIVATE_KEY",
+      "OPENROUTER_API_KEY",
+      "MODAL_TOKEN_ID",
+      "MODAL_TOKEN_SECRET",
     ],
   },
 }

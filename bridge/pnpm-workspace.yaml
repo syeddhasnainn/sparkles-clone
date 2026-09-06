@@ -1,0 +1,10 @@
+allowBuilds:
+  cbor-extract: false
+  protobufjs: false
+
+minimumReleaseAge: 1440
+trustPolicy: no-downgrade
+
+# Official Modal SDK; the npm name previously belonged to an unrelated package.
+trustPolicyExclude:
+  - modal@0.10.0
