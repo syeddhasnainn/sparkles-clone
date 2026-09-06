@@ -1,5 +1,6 @@
+import { AppIcon } from "../ui/app-icon";
 import { Link } from "@tanstack/react-router";
-import { ExternalLink } from "lucide-react";
+import ExternalLink from "@hugeicons/core-free-icons/LinkSquare02Icon";
 import { Button } from "@/components/ui/button";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { useGitHubConnection } from "@/hooks/use-github-connection";
@@ -62,7 +63,7 @@ function GitHubConnection() {
       <div className="flex items-center gap-3">
         <img src={account.avatarUrl} alt="" className="size-9 rounded-full" />
         <div>
-          <p className="text-sm font-medium">@{account.login}</p>
+          <p className="text-[13px] font-normal">@{account.login}</p>
           <p className="text-xs text-muted-foreground">
             {account.reconnectRequired ? "Reconnect to restore access" : "Connected"}
           </p>
@@ -88,7 +89,7 @@ function GitHubConnection() {
               className={buttonVariants({ variant: "outline" })}
             >
               Manage repository access
-              <ExternalLink className="size-3.5" />
+              <AppIcon icon={ExternalLink} className="size-3.5" />
             </a>
           </>
         )}
@@ -122,7 +123,7 @@ export function GitHubSettings({ status }: { status?: string }) {
             <div className="flex items-start gap-3">
               <DashboardIcon name="github" size={24} />
               <div>
-                <h2 id="github-heading" className="text-base font-semibold">
+                <h2 id="github-heading" className="text-sm font-normal">
                   GitHub
                 </h2>
                 <p className="mt-1 text-sm text-muted-foreground">

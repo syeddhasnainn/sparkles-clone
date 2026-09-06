@@ -1,6 +1,9 @@
+import { AppIcon } from "../ui/app-icon";
 import { useState } from "react";
 import { Popover } from "@base-ui/react/popover";
-import { Check, ChevronDown, Search } from "lucide-react";
+import Check from "@hugeicons/core-free-icons/Tick02Icon";
+import ChevronDown from "@hugeicons/core-free-icons/ArrowDown01Icon";
+import Search from "@hugeicons/core-free-icons/Search01Icon";
 import { DashboardIcon } from "./dashboard-icon";
 import { Picker } from "./picker";
 
@@ -39,12 +42,12 @@ export function BranchPicker({
           <>
             <DashboardIcon name="branch" size={14} />
             <span>{branch}</span>
-            <ChevronDown size={12} />
+            <AppIcon icon={ChevronDown} size={12} />
           </>
         }
       >
         <label className="picker-search">
-          <Search size={16} />
+          <AppIcon icon={Search} size={16} />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -55,7 +58,9 @@ export function BranchPicker({
         <div className="branch-options">
           {filtered.map((name) => (
             <Popover.Close className="picker-option" key={name} onClick={() => onChange(name)}>
-              <span className="selection-mark">{branch === name && <Check size={14} />}</span>
+              <span className="selection-mark">
+                {branch === name && <AppIcon icon={Check} size={14} />}
+              </span>
               {name}
             </Popover.Close>
           ))}

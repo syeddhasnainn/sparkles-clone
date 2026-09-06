@@ -1,4 +1,5 @@
-import { ChevronsUpDown } from "lucide-react";
+import { AppIcon } from "../ui/app-icon";
+import ChevronsUpDown from "@hugeicons/core-free-icons/ArrowUpDownIcon";
 
 export function WorkspaceSwitcher() {
   return (
@@ -9,7 +10,7 @@ export function WorkspaceSwitcher() {
       <span className="header-divider">/</span>
       <button className="project-button" disabled>
         Projects
-        <ChevronsUpDown size={12} />
+        <AppIcon icon={ChevronsUpDown} size={12} />
       </button>
     </div>
   );

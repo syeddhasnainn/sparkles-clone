@@ -1,15 +1,14 @@
+import { AppIcon } from "../ui/app-icon";
 import { useId, useState } from "react";
-import {
-  Check,
-  ChevronDown,
-  FileCode2,
-  FileText,
-  Pencil,
-  Search,
-  Terminal,
-  Wrench,
-  CircleAlert,
-} from "lucide-react";
+import Check from "@hugeicons/core-free-icons/Tick02Icon";
+import ChevronDown from "@hugeicons/core-free-icons/ArrowDown01Icon";
+import FileCode2 from "@hugeicons/core-free-icons/DocumentCodeIcon";
+import FileText from "@hugeicons/core-free-icons/File01Icon";
+import Pencil from "@hugeicons/core-free-icons/PencilEdit01Icon";
+import Search from "@hugeicons/core-free-icons/Search01Icon";
+import Terminal from "@hugeicons/core-free-icons/ConsoleIcon";
+import Wrench from "@hugeicons/core-free-icons/ToolsIcon";
+import CircleAlert from "@hugeicons/core-free-icons/AlertCircleIcon";
 import type { ToolCall } from "./tool-activity";
 
 const kinds = new Map([
@@ -37,17 +36,17 @@ export function ToolActivity({ call }: { call: ToolCall }) {
         aria-controls={panelId}
         onClick={() => setExpanded(!open)}
       >
-        <Icon size={16} aria-hidden="true" />
+        <AppIcon icon={Icon} size={16} aria-hidden="true" />
         <span className={`tool-task-title${active ? " tool-task-shimmer" : ""}`}>{call.title}</span>
         <span className="tool-task-status">
           {call.status === "completed" ? (
-            <Check size={13} aria-hidden="true" />
+            <AppIcon icon={Check} size={13} aria-hidden="true" />
           ) : ["failed", "interrupted"].includes(call.status) ? (
-            <CircleAlert size={13} aria-hidden="true" />
+            <AppIcon icon={CircleAlert} size={13} aria-hidden="true" />
           ) : null}
           <span className="sr-only">{status}</span>
         </span>
-        <ChevronDown size={16} className="tool-task-chevron" aria-hidden="true" />
+        <AppIcon icon={ChevronDown} size={16} className="tool-task-chevron" aria-hidden="true" />
       </button>
       <div className="tool-task-panel" data-open={open} id={panelId} inert={!open}>
         <ul className="tool-task-steps">
@@ -57,7 +56,7 @@ export function ToolActivity({ call }: { call: ToolCall }) {
               <span>{label}</span>
               {call.paths.map((path) => (
                 <span key={path} className="tool-file-chip" title={path}>
-                  <FileCode2 size={14} aria-hidden="true" />
+                  <AppIcon icon={FileCode2} size={14} aria-hidden="true" />
                   <span>{path.split("/").at(-1) || path}</span>
                 </span>
               ))}

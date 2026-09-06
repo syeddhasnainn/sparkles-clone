@@ -1,3 +1,5 @@
+import { Streamdown } from "streamdown";
+import { code } from "@streamdown/code";
 import { z } from "zod";
 import { ToolActivity } from "./task-tools";
 import { toolCalls } from "./tool-activity";
@@ -44,7 +46,13 @@ function conversation(events: Events) {
   if (response) messages.push({ id: "current-response", role: "OpenCode", text: response });
   return messages;
 }
-export function Conversation({ events }: { events: Events }) {
+export function Conversation({
+  events,
+  streaming = false,
+}: {
+  events: Events;
+  streaming?: boolean;
+}) {
   return (
     <div className="task-messages">
       {conversation(events).map((message) =>
@@ -53,7 +61,18 @@ export function Conversation({ events }: { events: Events }) {
         ) : (
           <article key={message.id}>
             <strong>{message.role}</strong>
-            <div className="task-message-text">{message.text}</div>
+            {message.role === "OpenCode" ? (
+              <Streamdown
+                className="task-message-markdown"
+                plugins={{ code }}
+                isAnimating={streaming && message.id === "current-response"}
+                skipHtml
+              >
+                {message.text}
+              </Streamdown>
+            ) : (
+              <div className="task-message-text">{message.text}</div>
+            )}
           </article>
         ),
       )}
