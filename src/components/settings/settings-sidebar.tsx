@@ -41,13 +41,21 @@ export function SettingsSidebar({
           >
             Memories
           </Link>
+          <Link
+            to="/app/settings/integrations"
+            className="settings-nav-link"
+            activeProps={{ className: "active" }}
+            onClick={onNavigate}
+          >
+            Integrations
+          </Link>
           <span className="settings-nav-link" aria-disabled="true">
             API
           </span>
         </section>
         <section>
           <h2>Organization</h2>
-          {["General", "Billing", "Integrations"].map((label) => (
+          {["General", "Billing"].map((label) => (
             <span key={label} className="settings-nav-link" aria-disabled="true">
               {label}
             </span>

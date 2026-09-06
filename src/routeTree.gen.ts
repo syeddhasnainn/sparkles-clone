@@ -16,8 +16,11 @@ import { Route as AppIndexRouteImport } from './routes/app.index'
 import { Route as AppSettingsRouteImport } from './routes/app.settings'
 import { Route as ApiAuthCallbackRouteImport } from './routes/api.auth.callback'
 import { Route as ApiAuthSignInRouteImport } from './routes/api.auth.sign-in'
+import { Route as ApiGithubCallbackRouteImport } from './routes/api.github.callback'
+import { Route as ApiGithubConnectRouteImport } from './routes/api.github.connect'
 import { Route as AppSettingsIndexRouteImport } from './routes/app.settings.index'
 import { Route as AppSettingsAccountRouteImport } from './routes/app.settings.account'
+import { Route as AppSettingsIntegrationsRouteImport } from './routes/app.settings.integrations'
 import { Route as AppSettingsMemoriesRouteImport } from './routes/app.settings.memories'
 
 const IndexRoute = IndexRouteImport.update({
@@ -55,6 +58,16 @@ const ApiAuthSignInRoute = ApiAuthSignInRouteImport.update({
   path: '/api/auth/sign-in',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiGithubCallbackRoute = ApiGithubCallbackRouteImport.update({
+  id: '/api/github/callback',
+  path: '/api/github/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiGithubConnectRoute = ApiGithubConnectRouteImport.update({
+  id: '/api/github/connect',
+  path: '/api/github/connect',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AppSettingsIndexRoute = AppSettingsIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -63,6 +76,11 @@ const AppSettingsIndexRoute = AppSettingsIndexRouteImport.update({
 const AppSettingsAccountRoute = AppSettingsAccountRouteImport.update({
   id: '/account',
   path: '/account',
+  getParentRoute: () => AppSettingsRoute,
+} as any)
+const AppSettingsIntegrationsRoute = AppSettingsIntegrationsRouteImport.update({
+  id: '/integrations',
+  path: '/integrations',
   getParentRoute: () => AppSettingsRoute,
 } as any)
 const AppSettingsMemoriesRoute = AppSettingsMemoriesRouteImport.update({
@@ -79,7 +97,10 @@ export interface FileRoutesByFullPath {
   '/app/': typeof AppIndexRoute
   '/api/auth/callback': typeof ApiAuthCallbackRoute
   '/api/auth/sign-in': typeof ApiAuthSignInRoute
+  '/api/github/callback': typeof ApiGithubCallbackRoute
+  '/api/github/connect': typeof ApiGithubConnectRoute
   '/app/settings/account': typeof AppSettingsAccountRoute
+  '/app/settings/integrations': typeof AppSettingsIntegrationsRoute
   '/app/settings/memories': typeof AppSettingsMemoriesRoute
   '/app/settings/': typeof AppSettingsIndexRoute
 }
@@ -89,7 +110,10 @@ export interface FileRoutesByTo {
   '/app': typeof AppIndexRoute
   '/api/auth/callback': typeof ApiAuthCallbackRoute
   '/api/auth/sign-in': typeof ApiAuthSignInRoute
+  '/api/github/callback': typeof ApiGithubCallbackRoute
+  '/api/github/connect': typeof ApiGithubConnectRoute
   '/app/settings/account': typeof AppSettingsAccountRoute
+  '/app/settings/integrations': typeof AppSettingsIntegrationsRoute
   '/app/settings/memories': typeof AppSettingsMemoriesRoute
   '/app/settings': typeof AppSettingsIndexRoute
 }
@@ -102,7 +126,10 @@ export interface FileRoutesById {
   '/app/': typeof AppIndexRoute
   '/api/auth/callback': typeof ApiAuthCallbackRoute
   '/api/auth/sign-in': typeof ApiAuthSignInRoute
+  '/api/github/callback': typeof ApiGithubCallbackRoute
+  '/api/github/connect': typeof ApiGithubConnectRoute
   '/app/settings/account': typeof AppSettingsAccountRoute
+  '/app/settings/integrations': typeof AppSettingsIntegrationsRoute
   '/app/settings/memories': typeof AppSettingsMemoriesRoute
   '/app/settings/': typeof AppSettingsIndexRoute
 }
@@ -116,7 +143,10 @@ export interface FileRouteTypes {
     | '/app/'
     | '/api/auth/callback'
     | '/api/auth/sign-in'
+    | '/api/github/callback'
+    | '/api/github/connect'
     | '/app/settings/account'
+    | '/app/settings/integrations'
     | '/app/settings/memories'
     | '/app/settings/'
   fileRoutesByTo: FileRoutesByTo
@@ -126,7 +156,10 @@ export interface FileRouteTypes {
     | '/app'
     | '/api/auth/callback'
     | '/api/auth/sign-in'
+    | '/api/github/callback'
+    | '/api/github/connect'
     | '/app/settings/account'
+    | '/app/settings/integrations'
     | '/app/settings/memories'
     | '/app/settings'
   id:
@@ -138,7 +171,10 @@ export interface FileRouteTypes {
     | '/app/'
     | '/api/auth/callback'
     | '/api/auth/sign-in'
+    | '/api/github/callback'
+    | '/api/github/connect'
     | '/app/settings/account'
+    | '/app/settings/integrations'
     | '/app/settings/memories'
     | '/app/settings/'
   fileRoutesById: FileRoutesById
@@ -149,6 +185,8 @@ export interface RootRouteChildren {
   SignInRoute: typeof SignInRoute
   ApiAuthCallbackRoute: typeof ApiAuthCallbackRoute
   ApiAuthSignInRoute: typeof ApiAuthSignInRoute
+  ApiGithubCallbackRoute: typeof ApiGithubCallbackRoute
+  ApiGithubConnectRoute: typeof ApiGithubConnectRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -202,6 +240,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthSignInRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/github/callback': {
+      id: '/api/github/callback'
+      path: '/api/github/callback'
+      fullPath: '/api/github/callback'
+      preLoaderRoute: typeof ApiGithubCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/github/connect': {
+      id: '/api/github/connect'
+      path: '/api/github/connect'
+      fullPath: '/api/github/connect'
+      preLoaderRoute: typeof ApiGithubConnectRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/app/settings/': {
       id: '/app/settings/'
       path: '/'
@@ -216,6 +268,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsAccountRouteImport
       parentRoute: typeof AppSettingsRoute
     }
+    '/app/settings/integrations': {
+      id: '/app/settings/integrations'
+      path: '/integrations'
+      fullPath: '/app/settings/integrations'
+      preLoaderRoute: typeof AppSettingsIntegrationsRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
     '/app/settings/memories': {
       id: '/app/settings/memories'
       path: '/memories'
@@ -228,12 +287,14 @@ declare module '@tanstack/react-router' {
 
 interface AppSettingsRouteChildren {
   AppSettingsAccountRoute: typeof AppSettingsAccountRoute
+  AppSettingsIntegrationsRoute: typeof AppSettingsIntegrationsRoute
   AppSettingsMemoriesRoute: typeof AppSettingsMemoriesRoute
   AppSettingsIndexRoute: typeof AppSettingsIndexRoute
 }
 
 const AppSettingsRouteChildren: AppSettingsRouteChildren = {
   AppSettingsAccountRoute: AppSettingsAccountRoute,
+  AppSettingsIntegrationsRoute: AppSettingsIntegrationsRoute,
   AppSettingsMemoriesRoute: AppSettingsMemoriesRoute,
   AppSettingsIndexRoute: AppSettingsIndexRoute,
 }
@@ -260,6 +321,8 @@ const rootRouteChildren: RootRouteChildren = {
   SignInRoute: SignInRoute,
   ApiAuthCallbackRoute: ApiAuthCallbackRoute,
   ApiAuthSignInRoute: ApiAuthSignInRoute,
+  ApiGithubCallbackRoute: ApiGithubCallbackRoute,
+  ApiGithubConnectRoute: ApiGithubConnectRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

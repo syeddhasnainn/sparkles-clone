@@ -3,10 +3,12 @@ import { X } from "lucide-react";
 import { DashboardIcon } from "./dashboard-icon";
 import { RepositoryPicker } from "./repository-picker";
 import { AgentPicker } from "./agent-picker";
+import type { GitHubRepository } from "@/lib/github/functions";
 
 export function TaskComposer() {
   const [task, setTask] = useState("");
   const [attachments, setAttachments] = useState<File[]>([]);
+  const [repository, setRepository] = useState<GitHubRepository | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   return (
     <div className="composer-wrapper">
@@ -47,7 +49,7 @@ export function TaskComposer() {
         )}
         <div className="composer-toolbar">
           <div className="composer-options">
-            <RepositoryPicker />
+            <RepositoryPicker selected={repository} onSelect={setRepository} />
             <AgentPicker />
           </div>
           <div className="composer-actions">
@@ -73,7 +75,7 @@ export function TaskComposer() {
               className="send-button"
               aria-label="Start agent"
               disabled
-              title="Connect GitHub to start an agent"
+              title="Agent execution is not available yet"
             >
               <DashboardIcon name="send" size={18} />
             </button>

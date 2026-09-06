@@ -1,0 +1,24 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "sparkles-demo",
+  "main": "@tanstack/react-start/server-entry",
+  "compatibility_date": "2026-09-06",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true, "head_sampling_rate": 1 },
+  "d1_databases": [
+    { "binding": "DB", "database_name": "sparkles-demo", "migrations_dir": "migrations" },
+  ],
+  "secrets": {
+    "required": [
+      "WORKOS_CLIENT_ID",
+      "WORKOS_API_KEY",
+      "WORKOS_REDIRECT_URI",
+      "WORKOS_COOKIE_PASSWORD",
+      "GITHUB_CLIENT_ID",
+      "GITHUB_CLIENT_SECRET",
+      "GITHUB_APP_SLUG",
+      "GITHUB_REDIRECT_URI",
+      "GITHUB_TOKEN_ENCRYPTION_KEY",
+    ],
+  },
+}

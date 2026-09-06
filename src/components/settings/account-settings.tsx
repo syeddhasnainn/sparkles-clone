@@ -32,10 +32,10 @@ function RelatedSettings() {
           <span>What the agent remembers about you</span>
           <span>Memories</span>
         </Link>
-        <div className="related-settings-row" aria-disabled="true">
+        <Link to="/app/settings/integrations">
           <span>Accounts you have connected</span>
           <span>Integrations</span>
-        </div>
+        </Link>
         <p>Model, reasoning effort, and Fast mode are chosen in the chat composer.</p>
       </div>
     </SettingsSection>
