@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { authReturnPath, signInSearchSchema } from "./auth-redirect";
+import { authReturnPath, safeAuthRedirect, signInSearchSchema } from "./auth-redirect";
 
 describe("authentication return paths", () => {
   it.each([
@@ -14,6 +14,7 @@ describe("authentication return paths", () => {
     "/api/auth/sign-in",
   ])("rejects an unsafe or unrelated destination: %s", (value) => {
     expect(authReturnPath(value)).toBe("/app");
+    expect(safeAuthRedirect(value)).toEqual({ href: "/app" });
   });
 
   it("preserves an internal destination and query", () => {

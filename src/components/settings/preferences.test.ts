@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parsePreferences } from "./preferences";
+import { parsePreferences } from "./preferences-store";
 
 describe("saved preference validation", () => {
   it.each([null, "broken-json", "null", "[]", "42", '"dark"'])(
