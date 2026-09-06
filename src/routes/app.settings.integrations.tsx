@@ -13,5 +13,6 @@ export const Route = createFileRoute("/app/settings/integrations")({
 
 function Integrations() {
   const { github } = Route.useSearch();
+
   return <GitHubSettings status={github} />;
 }

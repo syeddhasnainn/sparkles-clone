@@ -17,8 +17,11 @@ export function Dashboard() {
   const toggleRef = useRef<HTMLButtonElement>(null);
   const sidebarOpen = mobile ? mobileOpen : desktopOpen;
   const setSidebarOpen = mobile ? setMobileOpen : setDesktopOpen;
+
   const closeSidebar = () => setSidebarOpen(false);
+
   const onNavigate = () => setMobileOpen(false);
+
   const sidebar = settings ? (
     <SettingsSidebar onToggle={closeSidebar} onNavigate={onNavigate} />
   ) : (
@@ -31,6 +34,7 @@ export function Dashboard() {
       }}
     />
   );
+
   return (
     <DashboardDraftContext value={draft}>
       <div className={`dashboard ${sidebarOpen ? "sidebar-open" : "sidebar-closed"}`}>

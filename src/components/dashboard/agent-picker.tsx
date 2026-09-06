@@ -48,6 +48,7 @@ export function AgentPicker() {
   const [mode, setMode] = useState("");
   const [collaboration, setCollaboration] = useState("");
   const [effort, setEffort] = useState("Low");
+
   return (
     <Picker
       label={`Agent configuration: ${model} · ${harness}`}

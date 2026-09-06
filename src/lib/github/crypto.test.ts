@@ -7,6 +7,7 @@ describe("GitHub credential encryption", () => {
   it("round-trips credentials with a fresh nonce for each encryption", async () => {
     const first = await encrypt("private-token", key, "github:connection:user-a");
     const second = await encrypt("private-token", key, "github:connection:user-a");
+
     expect(first).not.toEqual(second);
     expect(first).not.toContain("private-token");
     expect(await decrypt(first, key, "github:connection:user-a")).toBe("private-token");
@@ -14,6 +15,7 @@ describe("GitHub credential encryption", () => {
 
   it("rejects credentials copied to another user", async () => {
     const value = await encrypt("private-token", key, "github:connection:user-a");
+
     await expect(decrypt(value, key, "github:connection:user-b")).rejects.toThrow();
   });
 
@@ -21,6 +23,7 @@ describe("GitHub credential encryption", () => {
     const value = await encrypt("private-token", key, "github:connection:user-a");
     const [iv, ciphertext] = value.split(".");
     const changed = `${iv}.${ciphertext[0] === "A" ? "B" : "A"}${ciphertext.slice(1)}`;
+
     await expect(decrypt(changed, key, "github:connection:user-a")).rejects.toThrow();
     await expect(decrypt(value, "ef".repeat(32), "github:connection:user-a")).rejects.toThrow();
   });

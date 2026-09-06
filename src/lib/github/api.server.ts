@@ -63,7 +63,11 @@ export async function requestGitHub<T>(
     signal: AbortSignal.timeout(10_000),
     redirect: "manual",
   });
-  if (!response.ok) throw new GitHubError(response.status);
+
+  if (!response.ok) {
+    throw new GitHubError(response.status);
+  }
+
   return schema.parse(await response.json());
 }
 
@@ -79,9 +83,17 @@ export async function exchangeToken(
     signal: AbortSignal.timeout(10_000),
     redirect: "manual",
   });
-  if (!response.ok) throw new GitHubError(response.status);
+
+  if (!response.ok) {
+    throw new GitHubError(response.status);
+  }
+
   const parsed = tokenSchema.safeParse(await response.json());
-  if (!parsed.success) throw new GitHubError(401);
+
+  if (!parsed.success) {
+    throw new GitHubError(401);
+  }
+
   return parsed.data;
 }
 
@@ -106,5 +118,8 @@ export async function revokeToken(
       redirect: "manual",
     },
   );
-  if (!response.ok && response.status !== 404) throw new GitHubError(response.status);
+
+  if (!response.ok && response.status !== 404) {
+    throw new GitHubError(response.status);
+  }
 }

@@ -10,6 +10,7 @@ import { PrivacyDialog } from "./privacy-dialog";
 
 function ProfileSettings() {
   const user = useAccount();
+
   return (
     <SettingsSection title="Profile" description="Your profile is synced from WorkOS.">
       <div className="profile-panel">

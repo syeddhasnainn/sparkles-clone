@@ -9,6 +9,7 @@ export const Route = createFileRoute("/app/")({
 
 function DashboardHome() {
   const draft = useDashboardDraft();
+
   return (
     <div className="dashboard-workspace">
       <TaskComposer key={draft} />

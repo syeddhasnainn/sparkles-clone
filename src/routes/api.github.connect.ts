@@ -10,7 +10,8 @@ export const Route = createFileRoute("/api/github/connect")({
     handlers: {
       GET: async () => {
         const { userId, sessionId } = await requireGitHubUser();
-        if (!githubConfigured())
+
+        if (!githubConfigured()) {
           return new Response(null, {
             status: 303,
             headers: {
@@ -18,8 +19,11 @@ export const Route = createFileRoute("/api/github/connect")({
               "Cache-Control": "no-store",
             },
           });
+        }
+
         const state = randomSecret();
         const verifier = randomSecret();
+
         await saveOAuthState(
           await sha256(state),
           userId,
@@ -37,7 +41,9 @@ export const Route = createFileRoute("/api/github/connect")({
           path: "/api/github",
           maxAge: 600,
         });
+
         const url = new URL("https://github.com/login/oauth/authorize");
+
         url.search = new URLSearchParams({
           client_id: env.GITHUB_CLIENT_ID,
           redirect_uri: env.GITHUB_REDIRECT_URI,
@@ -45,6 +51,7 @@ export const Route = createFileRoute("/api/github/connect")({
           code_challenge: await sha256(verifier),
           code_challenge_method: "S256",
         }).toString();
+
         return new Response(null, {
           status: 307,
           headers: { Location: url.href, "Cache-Control": "no-store" },

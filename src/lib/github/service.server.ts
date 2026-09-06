@@ -17,8 +17,11 @@ const credentialsSchema = z.object({ accessToken: z.string(), refreshToken: z.st
 
 export async function requireGitHubUser() {
   const auth = await getAuth();
-  if (!auth.user || !auth.sessionId)
+
+  if (!auth.user || !auth.sessionId) {
     throw redirect({ to: "/sign-in", search: { returnTo: "/app/settings/integrations" } });
+  }
+
   return { userId: auth.user.id, sessionId: auth.sessionId };
 }
 
@@ -52,10 +55,15 @@ export async function encryptCredentials(
 
 async function getToken(userId: string, forceRefresh = false): Promise<string> {
   const row = await readConnection(userId);
-  if (!row || row.reconnect_required || row.refresh_expires_at <= Date.now())
+
+  if (!row || row.reconnect_required || row.refresh_expires_at <= Date.now()) {
     throw new GitHubError(401);
-  if (row.lock_expires_at > Date.now())
+  }
+
+  if (row.lock_expires_at > Date.now()) {
     throw new Error("Your GitHub connection is updating. Try again in a moment.");
+  }
+
   const credentials = credentialsSchema.parse(
     JSON.parse(
       await decrypt(
@@ -65,15 +73,23 @@ async function getToken(userId: string, forceRefresh = false): Promise<string> {
       ),
     ),
   );
-  if (!forceRefresh && row.expires_at > Date.now() + 60_000) return credentials.accessToken;
+
+  if (!forceRefresh && row.expires_at > Date.now() + 60_000) {
+    return credentials.accessToken;
+  }
+
   const lockId = crypto.randomUUID();
-  if (!(await lockConnection(row, lockId)))
+
+  if (!(await lockConnection(row, lockId))) {
     throw new Error("Your GitHub connection is updating. Try again in a moment.");
+  }
+
   try {
     const tokens = await exchangeToken(env.GITHUB_CLIENT_ID, env.GITHUB_CLIENT_SECRET, {
       grant_type: "refresh_token",
       refresh_token: credentials.refreshToken,
     });
+
     const saved = await refreshConnection(
       row,
       lockId,
@@ -81,10 +97,17 @@ async function getToken(userId: string, forceRefresh = false): Promise<string> {
       Date.now() + tokens.expires_in * 1000,
       Date.now() + tokens.refresh_token_expires_in * 1000,
     );
-    if (!saved) throw new Error("Your GitHub connection changed. Please try again.");
+
+    if (!saved) {
+      throw new Error("Your GitHub connection changed. Please try again.");
+    }
+
     return tokens.access_token;
   } catch (error) {
-    if (error instanceof GitHubError && error.status === 401) await requireReconnect(row);
+    if (error instanceof GitHubError && error.status === 401) {
+      await requireReconnect(row);
+    }
+
     throw error;
   } finally {
     await unlockConnection(row, lockId);
@@ -99,25 +122,39 @@ export async function githubRequest<T>(
   try {
     return await requestGitHub(await getToken(userId), path, schema);
   } catch (error) {
-    if (!(error instanceof GitHubError) || error.status !== 401) throw error;
+    if (!(error instanceof GitHubError) || error.status !== 401) {
+      throw error;
+    }
   }
+
   try {
     return await requestGitHub(await getToken(userId, true), path, schema);
   } catch (error) {
     if (error instanceof GitHubError && error.status === 401) {
       const row = await readConnection(userId);
-      if (row) await requireReconnect(row);
+
+      if (row) {
+        await requireReconnect(row);
+      }
     }
+
     throw error;
   }
 }
 
 export async function disconnectGitHub(userId: string): Promise<void> {
   const row = await readConnection(userId);
-  if (!row) return;
+
+  if (!row) {
+    return;
+  }
+
   const lockId = crypto.randomUUID();
-  if (!(await lockConnection(row, lockId)))
+
+  if (!(await lockConnection(row, lockId))) {
     throw new Error("Your GitHub connection is updating. Try again in a moment.");
+  }
+
   try {
     const credentials = credentialsSchema.parse(
       JSON.parse(
@@ -129,16 +166,20 @@ export async function disconnectGitHub(userId: string): Promise<void> {
       ),
     );
     let token = credentials.accessToken;
+
     if (row.expires_at <= Date.now() + 60_000) {
       if (row.refresh_expires_at <= Date.now()) {
         await deleteConnection(row, lockId);
+
         return;
       }
+
       try {
         const tokens = await exchangeToken(env.GITHUB_CLIENT_ID, env.GITHUB_CLIENT_SECRET, {
           grant_type: "refresh_token",
           refresh_token: credentials.refreshToken,
         });
+
         const saved = await refreshConnection(
           row,
           lockId,
@@ -146,16 +187,23 @@ export async function disconnectGitHub(userId: string): Promise<void> {
           Date.now() + tokens.expires_in * 1000,
           Date.now() + tokens.refresh_token_expires_in * 1000,
         );
-        if (!saved) throw new Error("Your GitHub connection changed. Please try again.");
+
+        if (!saved) {
+          throw new Error("Your GitHub connection changed. Please try again.");
+        }
+
         token = tokens.access_token;
       } catch (error) {
         if (error instanceof GitHubError && error.status === 401) {
           await deleteConnection(row, lockId);
+
           return;
         }
+
         throw error;
       }
     }
+
     await revokeToken(env.GITHUB_CLIENT_ID, env.GITHUB_CLIENT_SECRET, token);
     await deleteConnection(row, lockId);
   } finally {

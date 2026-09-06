@@ -7,6 +7,7 @@
   descent-override: 31%;
   line-gap-override: 0%;
 }
+
 @font-face {
   font-family: "Articulat CF";
   src: url("/fonts/articulat-medium.otf") format("opentype");
@@ -16,12 +17,14 @@
   descent-override: 31%;
   line-gap-override: 0%;
 }
+
 @font-face {
   font-family: Gelica;
   src: url("/fonts/gelica-regular.otf") format("opentype");
   font-weight: 400;
   font-display: swap;
 }
+
 .dashboard {
   display: flex;
   width: 100%;
@@ -33,27 +36,33 @@
     sans-serif;
   color: var(--foreground);
 }
+
 .dashboard button {
   cursor: pointer;
 }
+
 .dashboard button:disabled {
   cursor: default;
 }
+
 .dashboard button,
 .picker-popup button {
   font: inherit;
 }
+
 .dashboard button:focus-visible,
 .picker-popup button:focus-visible {
   outline: 2px solid oklch(0.556 0 0);
   outline-offset: 2px;
 }
+
 .dashboard-icon {
   display: inline-block;
   flex-shrink: 0;
   background: currentColor;
   mask: var(--icon) center / contain no-repeat;
 }
+
 .dashboard-sidebar {
   width: 256px;
   flex-shrink: 0;
@@ -62,6 +71,7 @@
   background: var(--sidebar);
   border-right: 1px solid var(--border);
 }
+
 .sidebar-brand {
   height: 56px;
   flex-shrink: 0;
@@ -71,11 +81,13 @@
   align-items: center;
   border-bottom: 1px solid var(--border);
 }
+
 .sidebar-brand img {
   width: 80px;
   height: 28px;
   transform: translateX(4px);
 }
+
 .icon-button {
   display: inline-flex;
   width: 28px;
@@ -85,6 +97,7 @@
   border-radius: 8px;
   flex-shrink: 0;
 }
+
 .icon-button:hover,
 .toolbar-button:hover,
 .project-button:hover,
@@ -92,10 +105,12 @@
 .folder-heading:hover {
   background: var(--muted);
 }
+
 .sidebar-toggle {
   position: absolute;
   right: 8px;
 }
+
 .sidebar-actions {
   height: 44px;
   display: flex;
@@ -103,6 +118,7 @@
   gap: 4px;
   padding: 8px 8px 4px;
 }
+
 .new-chat-group {
   display: flex;
   height: 32px;
@@ -111,6 +127,7 @@
   border-radius: 8px;
   box-shadow: 0 1px 2px oklch(0 0 0 / 0.05);
 }
+
 .new-chat-button {
   flex: 1;
   display: flex;
@@ -118,6 +135,7 @@
   gap: 8px;
   padding: 0 8px;
 }
+
 .new-chat-chevron {
   border-left: 1px solid var(--border);
   width: 32px;
@@ -125,6 +143,7 @@
   align-items: center;
   justify-content: center;
 }
+
 .folder-button {
   width: 32px;
   height: 32px;
@@ -135,14 +154,17 @@
   border: 1px solid var(--border);
   box-shadow: 0 1px 2px oklch(0 0 0 / 0.05);
 }
+
 .sidebar-content {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
 }
+
 .sidebar-nav {
   padding: 0 8px;
 }
+
 .nav-item {
   display: flex;
   align-items: center;
@@ -153,9 +175,11 @@
   border-radius: 8px;
   text-align: left;
 }
+
 .folder-section {
   padding: 8px 8px 0;
 }
+
 .folder-heading {
   height: 32px;
   display: flex;
@@ -165,14 +189,17 @@
   padding: 0 8px;
   border-radius: 8px;
 }
+
 .folder-heading > span {
   margin-left: auto;
   font-size: 12px;
   color: var(--muted-foreground);
 }
+
 .collapsed-chevron {
   transform: rotate(-90deg);
 }
+
 .empty-folder {
   border: 1px dashed var(--border);
   border-radius: 8px;
@@ -183,6 +210,7 @@
   color: var(--muted-foreground);
   font-size: 12px;
 }
+
 .section-label {
   font-size: 14px;
   font-weight: 500;
@@ -193,15 +221,18 @@
   justify-content: space-between;
   color: color-mix(in oklab, var(--foreground) 80%, var(--background));
 }
+
 .conversation-section {
   margin-top: 4px;
 }
+
 .conversation-list {
   padding: 0 8px;
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
+
 .conversation-row {
   height: 52px;
   display: flex;
@@ -210,6 +241,7 @@
   padding: 0 8px;
   color: oklch(0.65 0 0);
 }
+
 .repository-avatar {
   width: 20px;
   height: 20px;
@@ -217,16 +249,19 @@
   object-fit: cover;
   flex-shrink: 0;
 }
+
 .repository-avatar.small {
   width: 16px;
   height: 16px;
   border-radius: 4px;
 }
+
 .conversation-copy {
   height: 36px;
   min-width: 0;
   flex: 1;
 }
+
 .conversation-title {
   display: block;
   overflow: hidden;
@@ -234,6 +269,7 @@
   white-space: nowrap;
   max-width: 136px;
 }
+
 .pull-request {
   display: flex;
   align-items: center;
@@ -243,31 +279,39 @@
   color: var(--muted-foreground);
   white-space: nowrap;
 }
+
 .additions {
   color: #52816d;
 }
+
 .deletions {
   color: #aa6666;
 }
+
 .conversation-time {
   font-size: 12px;
   align-self: flex-start;
   margin-top: 12px;
   color: var(--muted-foreground);
 }
+
 .team-section {
   margin-top: 4px;
 }
+
 .team-section .empty-folder {
   margin: 0 8px;
 }
+
 .sidebar-footer {
   border-top: 1px solid var(--border);
   padding: 8px;
 }
+
 .sidebar-footer .nav-item {
   height: 32px;
 }
+
 .dashboard-main {
   display: flex;
   flex: 1;
@@ -278,6 +322,7 @@
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.4'/%3E%3C/svg%3E");
   background-size: 400px 400px;
 }
+
 .dashboard-header {
   height: 56px;
   flex-shrink: 0;
@@ -289,6 +334,7 @@
   background: color-mix(in oklab, var(--background) 80%, transparent);
   backdrop-filter: blur(8px);
 }
+
 .organization-button {
   height: 28px;
   width: 28px;
@@ -298,10 +344,12 @@
   font-size: 12px !important;
   font-weight: 500 !important;
 }
+
 .header-divider {
   color: oklch(0.85 0 0);
   padding: 0 4px;
 }
+
 .project-button {
   display: flex;
   align-items: center;
@@ -311,6 +359,7 @@
   color: var(--muted-foreground);
   border-radius: 8px;
 }
+
 .account-button {
   margin-left: auto;
   width: 32px;
@@ -321,6 +370,7 @@
   font-family: Georgia, serif !important;
   font-size: 20px !important;
 }
+
 .dashboard-workspace {
   display: flex;
   align-items: center;
@@ -330,11 +380,13 @@
   padding: 0 24px;
   overflow-y: auto;
 }
+
 .composer-wrapper {
   position: relative;
   width: 100%;
   max-width: 560px;
 }
+
 .composer-intro {
   position: absolute;
   left: 0;
@@ -342,6 +394,7 @@
   bottom: calc(100% + 56px);
   text-align: center;
 }
+
 .composer-intro h1 {
   font:
     400 30px/37.5px Gelica,
@@ -349,6 +402,7 @@
     serif;
   text-wrap: balance;
 }
+
 .composer-intro p {
   margin: 8px auto 0;
   max-width: 448px;
@@ -357,6 +411,7 @@
   color: var(--muted-foreground);
   text-wrap: pretty;
 }
+
 .composer-surface {
   background: var(--background);
   border-radius: 16px;
@@ -366,12 +421,14 @@
     0 14px 40px oklch(0 0 0 / 0.08);
   overflow: hidden;
 }
+
 .composer-surface:focus-within {
   box-shadow:
     0 0 0 1px oklch(0.25 0 0 / 0.72),
     0 0 0 3px oklch(0.25 0 0 / 0.18),
     0 14px 40px oklch(0 0 0 / 0.1);
 }
+
 .composer-surface textarea {
   display: block;
   width: 100%;
@@ -386,10 +443,12 @@
   font: inherit;
   background: var(--background);
 }
+
 .composer-surface textarea::placeholder {
   color: var(--muted-foreground);
   opacity: 1;
 }
+
 .composer-toolbar {
   display: flex;
   align-items: center;
@@ -397,6 +456,7 @@
   gap: 12px;
   padding: 0 12px 8px;
 }
+
 .composer-options,
 .composer-actions {
   display: flex;
@@ -404,6 +464,7 @@
   gap: 4px;
   min-width: 0;
 }
+
 .toolbar-button {
   display: inline-flex;
   align-items: center;
@@ -414,20 +475,25 @@
   font-size: 12px !important;
   white-space: nowrap;
 }
+
 .toolbar-button > svg {
   color: var(--muted-foreground);
 }
+
 .agent-icon {
   width: 20px;
   height: 20px;
   flex-shrink: 0;
 }
+
 .muted {
   color: var(--muted-foreground);
 }
+
 .attach-button {
   color: var(--muted-foreground);
 }
+
 .send-button {
   width: 32px;
   height: 32px;
@@ -439,14 +505,17 @@
   background: var(--primary);
   color: var(--primary-foreground);
 }
+
 .send-button:disabled {
   opacity: 0.5;
 }
+
 .branch-tab {
   position: absolute;
   left: 12px;
   bottom: calc(100% - 1px);
 }
+
 .branch-button {
   display: flex;
   align-items: center;
@@ -461,19 +530,23 @@
   font-size: 12px !important;
   font-weight: 500 !important;
 }
+
 .branch-button span:not(.dashboard-icon) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
 .branch-button .dashboard-icon,
 .branch-button svg {
   color: var(--muted-foreground);
   flex-shrink: 0;
 }
+
 .picker-positioner {
   z-index: 30;
 }
+
 .picker-popup {
   width: 320px;
   max-width: calc(100vw - 24px);
@@ -487,6 +560,7 @@
     400 12px/18px "Articulat CF",
     sans-serif;
 }
+
 .picker-search {
   display: flex;
   align-items: center;
@@ -495,6 +569,7 @@
   border-bottom: 1px solid var(--border);
   color: var(--muted-foreground);
 }
+
 .picker-search input {
   outline: none;
   height: 20px;
@@ -502,13 +577,16 @@
   font-size: 14px;
   color: var(--foreground);
 }
+
 .picker-caption {
   padding: 6px 12px;
   color: var(--muted-foreground);
 }
+
 .branch-options {
   padding: 4px;
 }
+
 .picker-option {
   display: flex;
   width: 100%;
@@ -520,11 +598,13 @@
   cursor: pointer;
   gap: 4px;
 }
+
 .picker-option:hover,
 .picker-option:focus-visible,
 .repository-option:hover {
   background: var(--muted);
 }
+
 .selection-mark {
   display: flex;
   width: 20px;
@@ -532,16 +612,19 @@
   align-items: center;
   justify-content: center;
 }
+
 .selection-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
   background: currentColor;
 }
+
 .repository-popup {
   width: 380px;
   padding-bottom: 4px;
 }
+
 .repository-option {
   display: flex;
   align-items: center;
@@ -553,18 +636,22 @@
   border-radius: 4px;
   cursor: pointer;
 }
+
 .repository-option[aria-pressed="true"] {
   background: var(--muted);
 }
+
 .repository-info {
   display: flex;
   flex-direction: column;
   font-size: 14px;
 }
+
 .repository-info small {
   font-size: 12px;
   color: var(--muted-foreground);
 }
+
 .repository-check {
   height: 16px;
   width: 16px;
@@ -574,21 +661,25 @@
   align-items: center;
   justify-content: center;
 }
+
 .repository-check.selected {
   background: var(--primary);
   color: white;
   border-color: var(--primary);
 }
+
 .private-badge {
   margin-left: auto;
   border: 1px solid var(--border);
   padding: 1px 8px;
   border-radius: 12px;
 }
+
 .agent-option-group {
   padding: 4px;
   border-bottom: 1px solid var(--border);
 }
+
 .agent-option-group h3 {
   text-transform: uppercase;
   font-size: 10px;
@@ -596,12 +687,14 @@
   color: var(--muted-foreground);
   padding: 4px 8px;
 }
+
 .attachments {
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
   padding: 0 16px 8px;
 }
+
 .attachment {
   display: flex;
   gap: 8px;
@@ -613,6 +706,7 @@
   border-radius: 6px;
   padding: 3px 6px;
 }
+
 .composer-status {
   position: absolute;
   top: calc(100% + 16px);
@@ -621,6 +715,7 @@
   color: var(--muted-foreground);
   font-size: 12px;
 }
+
 .skip-link {
   position: fixed;
   top: 8px;
@@ -631,13 +726,16 @@
   background: var(--background);
   transform: translateY(-150%);
 }
+
 .skip-link:focus {
   transform: translateY(0);
 }
+
 .sidebar-backdrop,
 .mobile-only {
   display: none;
 }
+
 @media (max-width: 767px) {
   .dashboard-sidebar {
     position: absolute;
@@ -647,6 +745,7 @@
     z-index: 40;
     box-shadow: 4px 0 16px #0001;
   }
+
   .sidebar-backdrop {
     display: block;
     position: fixed;
@@ -654,38 +753,47 @@
     z-index: 35;
     background: #0003;
   }
+
   .mobile-only {
     display: inline-flex;
   }
+
   .dashboard-workspace {
     padding: 0 16px;
   }
 }
+
 @media (max-width: 479px) {
   .composer-intro h1 {
     font-size: 24px;
     line-height: 30px;
   }
+
   .composer-intro {
     bottom: calc(100% + 52px);
   }
+
   .composer-toolbar {
     gap: 4px;
     padding-left: 6px;
     padding-right: 8px;
   }
+
   .toolbar-button {
     padding: 0 3px;
     gap: 3px;
     font-size: 11px !important;
   }
+
   .harness-label {
     display: none;
   }
+
   .composer-options {
     gap: 1px;
   }
 }
+
 @media (max-height: 500px) {
   .dashboard-workspace {
     align-items: flex-start;
@@ -693,6 +801,7 @@
     padding-bottom: 64px;
   }
 }
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -705,6 +814,7 @@
 .composer-options {
   gap: 8px;
 }
+
 @media (max-width: 479px) {
   .composer-options {
     gap: 1px;

@@ -71,12 +71,14 @@ beforeEach(async () => {
 describe("GitHub session and refresh boundaries", () => {
   it("rejects unauthenticated access before using a GitHub connection", async () => {
     vi.mocked(getAuth).mockResolvedValue({ user: null });
+
     await expect(requireGitHubUser()).rejects.toBeDefined();
     expect(readConnection).not.toHaveBeenCalled();
   });
 
   it("refreshes expired credentials under a database lock", async () => {
     await githubRequest("user-a", "/user/installations", z.object({ ok: z.boolean() }));
+
     expect(readConnection).toHaveBeenCalledWith("user-a");
     expect(exchangeToken).toHaveBeenCalledWith("client", "secret", {
       grant_type: "refresh_token",
@@ -92,6 +94,7 @@ describe("GitHub session and refresh boundaries", () => {
 
   it("does not rotate a refresh token while another request holds the lock", async () => {
     vi.mocked(lockConnection).mockResolvedValue(false);
+
     await expect(githubRequest("user-a", "/user", z.unknown())).rejects.toThrow("updating");
     expect(exchangeToken).not.toHaveBeenCalled();
     expect(requestGitHub).not.toHaveBeenCalled();
@@ -99,12 +102,14 @@ describe("GitHub session and refresh boundaries", () => {
 
   it("does not use a token after a concurrent connection replacement", async () => {
     vi.mocked(refreshConnection).mockResolvedValue(false);
+
     await expect(githubRequest("user-a", "/user", z.unknown())).rejects.toThrow("changed");
     expect(requestGitHub).not.toHaveBeenCalled();
   });
 
   it("preserves the connection on a transient token service failure", async () => {
     vi.mocked(exchangeToken).mockRejectedValue(new GitHubError(503));
+
     await expect(githubRequest("user-a", "/user", z.unknown())).rejects.toThrow();
     expect(requireReconnect).not.toHaveBeenCalled();
     expect(unlockConnection).toHaveBeenCalledOnce();
@@ -112,6 +117,7 @@ describe("GitHub session and refresh boundaries", () => {
 
   it("retains local credentials when GitHub revocation fails so disconnect can be retried", async () => {
     vi.mocked(revokeToken).mockRejectedValue(new GitHubError(503));
+
     await expect(disconnectGitHub("user-a")).rejects.toThrow();
     expect(deleteConnection).not.toHaveBeenCalled();
     expect(unlockConnection).toHaveBeenCalledOnce();

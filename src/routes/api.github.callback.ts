@@ -27,24 +27,34 @@ export const Route = createFileRoute("/api/github/callback")({
         const cookie = getCookie("github-oauth-state") ?? "";
 
         deleteCookie("github-oauth-state", { path: "/api/github" });
+
         if (
           !/^[\w-]{43}$/.test(state) ||
           !/^[\w-]{43}$/.test(cookie) ||
           !timingSafeEqual(Buffer.from(state), Buffer.from(cookie))
         ) {
           console.error({ event: "github_oauth_failed", stage: "state_cookie" });
+
           return result("failed");
         }
 
         const flow = await consumeOAuthState(await sha256(state), userId, sessionId);
+
         if (!flow) {
           console.error({ event: "github_oauth_failed", stage: "state_storage" });
+
           return result("failed");
         }
-        if (parameters.get("error") === "access_denied") return result("cancelled");
+
+        if (parameters.get("error") === "access_denied") {
+          return result("cancelled");
+        }
 
         const code = parameters.get("code");
-        if (!code || code.length > 1024) return result("failed");
+
+        if (!code || code.length > 1024) {
+          return result("failed");
+        }
 
         let stage = "verifier";
 
