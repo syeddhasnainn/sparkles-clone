@@ -3,7 +3,7 @@ import { env } from "cloudflare:workers";
 import { createFileRoute } from "@tanstack/react-router";
 import { deleteCookie, getCookie } from "@tanstack/react-start/server";
 import { decrypt, sha256 } from "@/lib/github/crypto";
-import { exchangeToken, profileSchema, requestGitHub } from "@/lib/github/api.server";
+import { exchangeToken, profileSchema, requestGitHub, GitHubError } from "@/lib/github/api.server";
 import { encryptCredentials, requireGitHubUser } from "@/lib/github/service.server";
 import { consumeOAuthState, saveConnection } from "@/lib/github/store.server";
 
@@ -25,30 +25,47 @@ export const Route = createFileRoute("/api/github/callback")({
         const parameters = new URL(request.url).searchParams;
         const state = parameters.get("state") ?? "";
         const cookie = getCookie("github-oauth-state") ?? "";
+
         deleteCookie("github-oauth-state", { path: "/api/github" });
         if (
           !/^[\w-]{43}$/.test(state) ||
           !/^[\w-]{43}$/.test(cookie) ||
           !timingSafeEqual(Buffer.from(state), Buffer.from(cookie))
-        )
+        ) {
+          console.error({ event: "github_oauth_failed", stage: "state_cookie" });
           return result("failed");
+        }
+
         const flow = await consumeOAuthState(await sha256(state), userId, sessionId);
-        if (!flow) return result("failed");
+        if (!flow) {
+          console.error({ event: "github_oauth_failed", stage: "state_storage" });
+          return result("failed");
+        }
         if (parameters.get("error") === "access_denied") return result("cancelled");
+
         const code = parameters.get("code");
         if (!code || code.length > 1024) return result("failed");
+
+        let stage = "verifier";
+
         try {
           const verifier = await decrypt(
             flow.verifier,
             env.GITHUB_TOKEN_ENCRYPTION_KEY,
             `github:oauth:${userId}:${sessionId}`,
           );
+
+          stage = "token_exchange";
           const tokens = await exchangeToken(env.GITHUB_CLIENT_ID, env.GITHUB_CLIENT_SECRET, {
             code,
             code_verifier: verifier,
             redirect_uri: env.GITHUB_REDIRECT_URI,
           });
+
+          stage = "profile";
           const profile = await requestGitHub(tokens.access_token, "/user", profileSchema);
+
+          stage = "storage";
           await saveConnection({
             user_id: userId,
             connection_id: crypto.randomUUID(),
@@ -64,8 +81,16 @@ export const Route = createFileRoute("/api/github/callback")({
             refresh_expires_at: Date.now() + tokens.refresh_token_expires_in * 1000,
             connected_at: Date.now(),
           });
+
           return result("connected");
-        } catch {
+        } catch (error) {
+          console.error({
+            event: "github_oauth_failed",
+            stage,
+            status: error instanceof GitHubError ? error.status : undefined,
+            errorType: error instanceof Error ? error.name : "unknown",
+          });
+
           return result("failed");
         }
       },

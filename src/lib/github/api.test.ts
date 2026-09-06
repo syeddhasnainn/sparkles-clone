@@ -19,6 +19,21 @@ describe("GitHub API boundary", () => {
     );
   });
 
+  it("rejects redirects without following them", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(null, {
+          status: 302,
+          headers: { Location: "https://example.com" },
+        }),
+      ),
+    );
+
+    await expect(exchangeToken("client", "secret", { code: "code" })).rejects.toThrow(GitHubError);
+    await expect(requestGitHub("secret", "/user", profileSchema)).rejects.toThrow(GitHubError);
+  });
+
   it("requires expiring GitHub App tokens", async () => {
     vi.stubGlobal(
       "fetch",
@@ -52,7 +67,7 @@ describe("GitHub API boundary", () => {
     await exchangeToken("client", "secret", { code: "code", code_verifier: "verifier" });
     const [url, options] = fetcher.mock.calls[0];
     expect(url).toBe("https://github.com/login/oauth/access_token");
-    expect(options.redirect).toBe("error");
+    expect(options.redirect).toBe("manual");
     expect(options.body.get("code_verifier")).toBe("verifier");
   });
 });

@@ -61,7 +61,7 @@ export async function requestGitHub<T>(
       "User-Agent": "Sparkles",
     },
     signal: AbortSignal.timeout(10_000),
-    redirect: "error",
+    redirect: "manual",
   });
   if (!response.ok) throw new GitHubError(response.status);
   return schema.parse(await response.json());
@@ -77,7 +77,7 @@ export async function exchangeToken(
     headers: { Accept: "application/json", "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ client_id: clientId, client_secret: clientSecret, ...parameters }),
     signal: AbortSignal.timeout(10_000),
-    redirect: "error",
+    redirect: "manual",
   });
   if (!response.ok) throw new GitHubError(response.status);
   const parsed = tokenSchema.safeParse(await response.json());
@@ -103,7 +103,7 @@ export async function revokeToken(
       },
       body: JSON.stringify({ access_token: token }),
       signal: AbortSignal.timeout(10_000),
-      redirect: "error",
+      redirect: "manual",
     },
   );
   if (!response.ok && response.status !== 404) throw new GitHubError(response.status);
