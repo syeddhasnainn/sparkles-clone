@@ -23,6 +23,7 @@ import { Route as AppSettingsAccountRouteImport } from './routes/app.settings.ac
 import { Route as AppSettingsIntegrationsRouteImport } from './routes/app.settings.integrations'
 import { Route as AppSettingsMemoriesRouteImport } from './routes/app.settings.memories'
 import { Route as AppTasksTaskIdRouteImport } from './routes/app.tasks.$taskId'
+import { Route as ApiWorkspacesIdOpenViewRouteImport } from './routes/api.workspaces.$id.open.$view'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -94,6 +95,11 @@ const AppTasksTaskIdRoute = AppTasksTaskIdRouteImport.update({
   path: '/tasks/$taskId',
   getParentRoute: () => AppRoute,
 } as any)
+const ApiWorkspacesIdOpenViewRoute = ApiWorkspacesIdOpenViewRouteImport.update({
+  id: '/api/workspaces/$id/open/$view',
+  path: '/api/workspaces/$id/open/$view',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -110,6 +116,7 @@ export interface FileRoutesByFullPath {
   '/app/settings/memories': typeof AppSettingsMemoriesRoute
   '/app/tasks/$taskId': typeof AppTasksTaskIdRoute
   '/app/settings/': typeof AppSettingsIndexRoute
+  '/api/workspaces/$id/open/$view': typeof ApiWorkspacesIdOpenViewRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -124,6 +131,7 @@ export interface FileRoutesByTo {
   '/app/settings/memories': typeof AppSettingsMemoriesRoute
   '/app/tasks/$taskId': typeof AppTasksTaskIdRoute
   '/app/settings': typeof AppSettingsIndexRoute
+  '/api/workspaces/$id/open/$view': typeof ApiWorkspacesIdOpenViewRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -141,6 +149,7 @@ export interface FileRoutesById {
   '/app/settings/memories': typeof AppSettingsMemoriesRoute
   '/app/tasks/$taskId': typeof AppTasksTaskIdRoute
   '/app/settings/': typeof AppSettingsIndexRoute
+  '/api/workspaces/$id/open/$view': typeof ApiWorkspacesIdOpenViewRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -159,6 +168,7 @@ export interface FileRouteTypes {
     | '/app/settings/memories'
     | '/app/tasks/$taskId'
     | '/app/settings/'
+    | '/api/workspaces/$id/open/$view'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -173,6 +183,7 @@ export interface FileRouteTypes {
     | '/app/settings/memories'
     | '/app/tasks/$taskId'
     | '/app/settings'
+    | '/api/workspaces/$id/open/$view'
   id:
     | '__root__'
     | '/'
@@ -189,6 +200,7 @@ export interface FileRouteTypes {
     | '/app/settings/memories'
     | '/app/tasks/$taskId'
     | '/app/settings/'
+    | '/api/workspaces/$id/open/$view'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -199,6 +211,7 @@ export interface RootRouteChildren {
   ApiAuthSignInRoute: typeof ApiAuthSignInRoute
   ApiGithubCallbackRoute: typeof ApiGithubCallbackRoute
   ApiGithubConnectRoute: typeof ApiGithubConnectRoute
+  ApiWorkspacesIdOpenViewRoute: typeof ApiWorkspacesIdOpenViewRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -301,6 +314,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppTasksTaskIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/api/workspaces/$id/open/$view': {
+      id: '/api/workspaces/$id/open/$view'
+      path: '/api/workspaces/$id/open/$view'
+      fullPath: '/api/workspaces/$id/open/$view'
+      preLoaderRoute: typeof ApiWorkspacesIdOpenViewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -344,6 +364,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAuthSignInRoute: ApiAuthSignInRoute,
   ApiGithubCallbackRoute: ApiGithubCallbackRoute,
   ApiGithubConnectRoute: ApiGithubConnectRoute,
+  ApiWorkspacesIdOpenViewRoute: ApiWorkspacesIdOpenViewRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

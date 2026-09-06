@@ -4,10 +4,11 @@ import { Link, Outlet, useMatchRoute } from "@tanstack/react-router";
 import { useMobile } from "@/hooks/use-mobile";
 import { SettingsSidebar } from "@/components/settings/settings-sidebar";
 import { DashboardSidebar } from "./dashboard-sidebar";
-import { DashboardHeader } from "./dashboard-header";
+import { DashboardHeader, TaskHeaderContext } from "./dashboard-header";
 import { DashboardDraftContext } from "./dashboard-draft";
 
 export function Dashboard() {
+  const [headerElement, setHeaderElement] = useState<HTMLDivElement | null>(null);
   const mobile = useMobile();
   const matchRoute = useMatchRoute();
   const settings = Boolean(matchRoute({ to: "/app/settings", fuzzy: true }));
@@ -56,12 +57,15 @@ export function Dashboard() {
         </Dialog.Root>
         <main className="dashboard-main" id="dashboard-content" tabIndex={-1}>
           <DashboardHeader
+            contentRef={setHeaderElement}
             settings={settings}
             sidebarOpen={sidebarOpen}
             toggleRef={toggleRef}
             onToggle={() => setSidebarOpen(!sidebarOpen)}
           />
-          <Outlet />
+          <TaskHeaderContext value={headerElement}>
+            <Outlet />
+          </TaskHeaderContext>
         </main>
       </div>
     </DashboardDraftContext>

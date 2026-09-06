@@ -124,6 +124,9 @@ importers:
       '@hugeicons/react':
         specifier: ^1.1.10
         version: 1.1.10(react@19.2.8)
+      '@pierre/diffs':
+        specifier: 1.2.5
+        version: 1.2.5(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@streamdown/code':
         specifier: ^1.1.1
         version: 1.1.1(react@19.2.8)
@@ -1815,6 +1818,16 @@ packages:
     resolution: {integrity: sha512-HhD8kd3r6XpelZkhxhRty/po8V6yK1VV63Eq4kSsOS2IoHUywG3DV2EX+z/ZHw46aLI74Y6aA604NRiAqLKW9w==}
     engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
 
+  '@pierre/diffs@1.2.5':
+    resolution: {integrity: sha512-uYOz3Kfs5ED0qY0VraUXzylsEKvZPTVdexboM3QKPx/qBZmTT9F3lKAFuPpY5aIrV04sdHtoFCKStyzEu99U2A==}
+    peerDependencies:
+      react: ^18.3.1 || ^19.0.0
+      react-dom: ^18.3.1 || ^19.0.0
+
+  '@pierre/theme@1.0.3':
+    resolution: {integrity: sha512-sWHv11TMoqKxKDgTIk5VbhQjdPhs8DCcBxbjh3mRlS3YOM/OcrWoGX6MM8eBGn9cUu3M46Py0JnxsG2nJaFTuA==}
+    engines: {vscode: ^1.0.0}
+
   '@poppinss/colors@4.1.6':
     resolution: {integrity: sha512-H9xkIdFswbS8n1d6vmRd8+c10t2Qe+rZITbbDHHkQixH5+2x1FDGmi/0K+WgWiqQFKPSlIYB7jlH6Kpfn6Fleg==}
 
@@ -1989,6 +2002,9 @@ packages:
 
   '@shikijs/themes@3.23.0':
     resolution: {integrity: sha512-5qySYa1ZgAT18HR/ypENL9cUSGOeI2x+4IvYJu4JgVJdizn6kG4ia5Q1jDEOi7gTbN4RbuYtmHh0W3eccOrjMA==}
+
+  '@shikijs/transformers@3.23.0':
+    resolution: {integrity: sha512-F9msZVxdF+krQNSdQ4V+Ja5QemeAoTQ2jxt7nJCwhDsdF1JWS3KxIQXA3lQbyKwS3J61oHRUSv4jYWv3CkaKTQ==}
 
   '@shikijs/types@3.23.0':
     resolution: {integrity: sha512-3JZ5HXOZfYjsYSk0yPwBrkupyYSLpAE26Qc0HLghhZNGTZg/SKxXIIgoxOpmmeQP0RRSDJTk1/vPfw9tbw+jSQ==}
@@ -2883,6 +2899,10 @@ packages:
   devlop@1.1.0:
     resolution: {integrity: sha512-RWmIqhcFf1lRYBvNmr7qTNuyCt/7/ns2jbpp1+PalgE/rDQcBT0fioSMUpJ93irlUhC5hrg4cYqe6U+0ImW0rA==}
 
+  diff@8.0.3:
+    resolution: {integrity: sha512-qejHi7bcSD4hQAZE0tNAawRK1ZtafHDmMTMkrrIGgSLl7hTnQHmKCeB45xAcbfTqK2zowkM3j3bHt/4b/ARbYQ==}
+    engines: {node: '>=0.3.1'}
+
   diff@8.0.4:
     resolution: {integrity: sha512-DPi0FmjiSU5EvQV0++GFDOJ9ASQUVFh5kD+OzOnYdi7n3Wpm9hWWGfB/O2blfHcMVTL5WkQXSnRiK9makhrcnw==}
     engines: {node: '>=0.3.1'}
@@ -3700,6 +3720,9 @@ packages:
 
   lru-cache@5.1.1:
     resolution: {integrity: sha512-KpNARQA3Iwv+jTA0utUVVbrh+Jlrr1Fv0e56GGzAFOXN7dk/FviaDW8LHmK52DlcH4WP2n6gI8vN1aesBFgo9w==}
+
+  lru_map@0.4.1:
+    resolution: {integrity: sha512-I+lBvqMMFfqaV8CJCISjI3wbjmwVu/VyOoU7+qtu9d7ioW5klMgsTTiUOUp+DJvfTTzKXoPbyC6YfgkNcyPSOg==}
 
   lz-string@1.5.0:
     resolution: {integrity: sha512-h5bgJWpxJNswbU7qCrV0tIKQCaS3blPDrqKWx+QxzuzL1zGUzij9XCWLrSLsJPu5t+eWA/ycetzYAO5IOMcWAQ==}
@@ -6134,6 +6157,19 @@ snapshots:
 
   '@oxlint/plugins@1.81.0': {}
 
+  '@pierre/diffs@1.2.5(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
+    dependencies:
+      '@pierre/theme': 1.0.3
+      '@shikijs/transformers': 3.23.0
+      diff: 8.0.3
+      hast-util-to-html: 9.0.5
+      lru_map: 0.4.1
+      react: 19.2.8
+      react-dom: 19.2.8(react@19.2.8)
+      shiki: 3.23.0
+
+  '@pierre/theme@1.0.3': {}
+
   '@poppinss/colors@4.1.6':
     dependencies:
       kleur: 4.1.5
@@ -6268,6 +6304,11 @@ snapshots:
 
   '@shikijs/themes@3.23.0':
     dependencies:
+      '@shikijs/types': 3.23.0
+
+  '@shikijs/transformers@3.23.0':
+    dependencies:
+      '@shikijs/core': 3.23.0
       '@shikijs/types': 3.23.0
 
   '@shikijs/types@3.23.0':
@@ -7218,6 +7259,8 @@ snapshots:
     dependencies:
       dequal: 2.0.3
 
+  diff@8.0.3: {}
+
   diff@8.0.4: {}
 
   dom-accessibility-api@0.5.16: {}
@@ -8068,6 +8111,8 @@ snapshots:
   lru-cache@5.1.1:
     dependencies:
       yallist: 3.1.1
+
+  lru_map@0.4.1: {}
 
   lz-string@1.5.0: {}
 

@@ -121,6 +121,59 @@ function input(): CreateWorkspace {
 }
 
 describe("workspace lifecycle", () => {
+  it("authorizes view access and binds commands to the current sandbox generation", async () => {
+    const { controller, execute, dependencies } = harness();
+    const task = await controller.start("owner", input());
+    await controller.alarm();
+    execute.mockResolvedValueOnce({
+      running: true,
+      sandboxId: "sb-test",
+      commit: null,
+      view: { kind: "files", files: [], truncated: false },
+    });
+    await expect(
+      controller.view(
+        task.id,
+        { kind: "files", scope: "changed", base: "task" },
+        "https://app.example",
+      ),
+    ).resolves.toMatchObject({ kind: "files" });
+    expect(dependencies.authorize).toHaveBeenCalledWith("owner", task.repository);
+    expect(execute).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        action: "view",
+        name: `sparkles-${task.id}`,
+        commit: "a".repeat(40),
+      }),
+    );
+    await controller.stop(task.id);
+    await expect(
+      controller.view(task.id, { kind: "services" }, "https://app.example"),
+    ).rejects.toThrow("Resume");
+  });
+
+  it("discards a view response if the workspace stops while it is loading", async () => {
+    const { controller, execute } = harness();
+    const task = await controller.start("owner", input());
+    await controller.alarm();
+    execute.mockImplementationOnce(async () => {
+      await controller.stop(task.id);
+      return {
+        running: true,
+        sandboxId: "sb-test",
+        commit: null,
+        view: { kind: "files", files: [], truncated: false },
+      };
+    });
+    await expect(
+      controller.view(
+        task.id,
+        { kind: "files", scope: "all", base: "task" },
+        "https://app.example",
+      ),
+    ).rejects.toThrow("stopped while opening");
+  });
+
   it("deduplicates a request and limits simultaneous workspaces", async () => {
     const { controller } = harness();
     const request = input();
