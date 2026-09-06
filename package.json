@@ -15,7 +15,8 @@
     "format:check": "oxfmt --check .",
     "cf-typegen": "wrangler types",
     "db:migrate": "wrangler d1 migrations apply sparkles-demo --local",
-    "deploy": "pnpm build && wrangler deploy"
+    "deploy": "pnpm build && wrangler deploy",
+    "react:doctor": "react-doctor --scope full --yes"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",
@@ -52,6 +53,7 @@
     "miniflare": "5.20260903.0-alpha",
     "oxfmt": "^0.66.0",
     "oxlint": "1.81.0",
+    "react-doctor": "0.9.13",
     "typescript": "^6",
     "vite": "^8",
     "vitest": "^4",

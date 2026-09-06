@@ -22,6 +22,7 @@ The development server runs at http://localhost:3000 using the Cloudflare Worker
 - `pnpm run format:check`: check formatting
 - `pnpm run typecheck`: check TypeScript
 - `pnpm run check`: lint, formatting, and TypeScript checks
+- `pnpm run react:doctor`: full React Doctor scan; fails on errors or warnings
 - `pnpm test`: run Vitest
 - `pnpm run db:migrate`: apply D1 migrations locally
 - `pnpm run cf-typegen`: regenerate Workers binding types
@@ -88,3 +89,9 @@ Use a separate database, encryption key, GitHub App, and WorkOS environment for 
 The [anti-slop plugin](https://github.com/dmmulroy/anti-slop) is vendored in `tools/oxlint/anti-slop/`. All 15 generic rules run as errors through `pnpm lint` and `pnpm check`, configured in `.oxlintrc.json`. Generated bindings, generated routes, vendored rules, and agent tooling are excluded from linting.
 
 Keep `oxlint` and `@oxlint/plugins` pinned to the same version when upgrading. Only the generic rules are vendored; the Effect folder is omitted. GitHub service tests inject typed dependencies; storage tests run against Miniflare D1 with the application migration.
+
+## React Doctor
+
+React Doctor is pinned as a development dependency. Run `pnpm run react:doctor` for a full application scan. `doctor.config.json` excludes only vendored anti-slop rules and generated route/Workers files; application rules remain enabled. The scan must finish without warnings or errors.
+
+Dependency installs use a 24-hour minimum release age and reject trust downgrades. Exact-version exceptions cover the legacy publication metadata for `semver@6.3.1` (Babel) and `undici-types@6.21.0` (Node 22 types); future versions remain subject to the policy.

@@ -40,9 +40,9 @@ export const listGitHubInstallations = createServerFn({ method: "GET" })
     );
 
     return {
-      installations: result.installations
-        .filter((item) => !item.suspended_at)
-        .map((item) => ({ id: item.id, login: item.account.login })),
+      installations: result.installations.flatMap((item) =>
+        item.suspended_at ? [] : [{ id: item.id, login: item.account.login }],
+      ),
       hasMore: result.total_count > data.page * 100,
     };
   });

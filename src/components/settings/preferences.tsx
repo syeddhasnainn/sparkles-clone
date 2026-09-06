@@ -1,4 +1,3 @@
-import { z } from "zod";
 import {
   createContext,
   useContext,
@@ -7,80 +6,13 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from "react";
-
-export type Theme = "system" | "light" | "dark";
-
-export interface Preferences {
-  theme: Theme;
-  analytics: boolean;
-  replay: boolean;
-}
-
-const defaults: Preferences = { theme: "system", analytics: false, replay: false };
-const storageKey = "sparkles-preferences";
-const changeEvent = "sparkles-preferences-change";
-let memorySnapshot: string | null = null;
-
-function subscribe(callback: () => void) {
-  window.addEventListener("storage", callback);
-  window.addEventListener(changeEvent, callback);
-
-  return () => {
-    window.removeEventListener("storage", callback);
-    window.removeEventListener(changeEvent, callback);
-  };
-}
-
-function getSnapshot() {
-  try {
-    return window.localStorage.getItem(storageKey) ?? memorySnapshot;
-  } catch {
-    return memorySnapshot;
-  }
-}
-
-const preferencesSchema = z
-  .object({
-    theme: z.enum(["system", "light", "dark"]).catch("system"),
-    analytics: z.boolean().optional().catch(undefined),
-    replay: z.boolean().catch(defaults.replay),
-  })
-  .transform((value) => ({
-    theme: value.theme,
-    analytics: value.analytics ?? defaults.analytics,
-    replay: value.replay && value.analytics !== false,
-  }));
-
-export function parsePreferences(raw: string | null): Preferences {
-  try {
-    const result = preferencesSchema.safeParse(JSON.parse(raw ?? "null"));
-
-    return result.success ? result.data : defaults;
-  } catch {
-    return defaults;
-  }
-}
-
-function updatePreferences(changes: Partial<Preferences>) {
-  const next = { ...parsePreferences(getSnapshot()), ...changes };
-
-  if (next.replay) {
-    next.analytics = true;
-  }
-
-  const serialized = JSON.stringify(next);
-  memorySnapshot = serialized;
-
-  try {
-    window.localStorage.setItem(storageKey, serialized);
-  } catch {
-    return false;
-  } finally {
-    window.dispatchEvent(new Event(changeEvent));
-  }
-
-  return true;
-}
+import {
+  defaults,
+  subscribe,
+  getSnapshot,
+  parsePreferences,
+  updatePreferences,
+} from "./preferences-store";
 
 const PreferencesContext = createContext({ preferences: defaults, updatePreferences });
 
@@ -105,9 +37,9 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
     return () => query.removeEventListener("change", apply);
   }, [preferences.theme]);
 
-  return (
-    <PreferencesContext value={{ preferences, updatePreferences }}>{children}</PreferencesContext>
-  );
+  const value = useMemo(() => ({ preferences, updatePreferences }), [preferences]);
+
+  return <PreferencesContext value={value}>{children}</PreferencesContext>;
 }
 
 export function usePreferences() {

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { SettingsSection } from "./settings-section";
-import { usePreferences, type Theme } from "./preferences";
+import { usePreferences } from "./preferences";
+import type { Theme } from "./preferences-store";
 
 const themes: { value: Theme; label: string; description: string }[] = [
   { value: "system", label: "System", description: "Follow your device appearance." },

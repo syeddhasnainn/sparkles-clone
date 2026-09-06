@@ -1,3 +1,11 @@
 allowBuilds:
   esbuild: true
   workerd: true
+
+minimumReleaseAge: 1440
+trustPolicy: no-downgrade
+
+# Legacy versions required by Babel and Node 22 types use older publication metadata.
+trustPolicyExclude:
+  - semver@6.3.1
+  - undici-types@6.21.0

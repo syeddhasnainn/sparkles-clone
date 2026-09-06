@@ -5,9 +5,14 @@ import { RepositoryPicker } from "./repository-picker";
 import { AgentPicker } from "./agent-picker";
 import type { GitHubRepository } from "@/lib/github/functions";
 
+interface Attachment {
+  id: string;
+  file: File;
+}
+
 export function TaskComposer() {
   const [task, setTask] = useState("");
-  const [attachments, setAttachments] = useState<File[]>([]);
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [repository, setRepository] = useState<GitHubRepository | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
@@ -34,13 +39,15 @@ export function TaskComposer() {
         />
         {attachments.length > 0 && (
           <div className="attachments">
-            {attachments.map((file, index) => (
-              <span key={`${file.name}-${index}`} className="attachment">
+            {attachments.map(({ file, id }) => (
+              <span key={id} className="attachment">
                 {file.name}
                 <button
                   type="button"
                   aria-label={`Remove ${file.name}`}
-                  onClick={() => setAttachments((files) => files.filter((_, i) => i !== index))}
+                  onClick={() =>
+                    setAttachments((files) => files.filter((attachment) => attachment.id !== id))
+                  }
                 >
                   <X size={12} />
                 </button>
@@ -60,7 +67,13 @@ export function TaskComposer() {
               multiple
               hidden
               onChange={(e) => {
-                setAttachments((files) => [...files, ...Array.from(e.target.files ?? [])]);
+                setAttachments((files) => [
+                  ...files,
+                  ...Array.from(e.target.files ?? [], (file) => ({
+                    id: crypto.randomUUID(),
+                    file,
+                  })),
+                ]);
                 e.target.value = "";
               }}
             />
@@ -73,6 +86,7 @@ export function TaskComposer() {
               <DashboardIcon name="attach" />
             </button>
             <button
+              type="submit"
               className="send-button"
               aria-label="Start agent"
               disabled

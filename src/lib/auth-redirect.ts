@@ -22,3 +22,7 @@ export const signInSearchSchema = z.object({
   returnTo: z.string().catch("/app").transform(authReturnPath),
   error: z.literal("auth_failed").optional().catch(undefined),
 });
+
+export function safeAuthRedirect(value: string | null | undefined) {
+  return { href: authReturnPath(value) };
+}
