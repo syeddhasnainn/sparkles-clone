@@ -18,34 +18,43 @@ export function RepositoryPicker({
   const [open, setOpen] = useState(false);
   const triggerClass =
     "inline-flex h-7 max-w-full items-center gap-1.5 rounded-md px-1.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-50";
-  if (loading)
+
+  if (loading) {
     return (
       <button type="button" className={triggerClass} disabled>
         <DashboardIcon name="github" size={14} />
         Loading GitHub…
       </button>
     );
-  if (error)
+  }
+
+  if (error) {
     return (
       <button type="button" className={triggerClass} onClick={() => void reload()}>
         <DashboardIcon name="github" size={14} />
         Retry GitHub connection
       </button>
     );
-  if (!connection?.configured)
+  }
+
+  if (!connection?.configured) {
     return (
       <Link to="/app/settings/integrations" className={triggerClass}>
         <DashboardIcon name="github" size={14} />
         Connect GitHub
       </Link>
     );
-  if (!connection.account || connection.account.reconnectRequired)
+  }
+
+  if (!connection.account || connection.account.reconnectRequired) {
     return (
       <Link to="/api/github/connect" reloadDocument preload={false} className={triggerClass}>
         <DashboardIcon name="github" size={14} />
         {connection.account ? "Reconnect GitHub" : "Connect GitHub"}
       </Link>
     );
+  }
+
   return (
     <Popover.Root open={open} onOpenChange={setOpen}>
       <Popover.Trigger

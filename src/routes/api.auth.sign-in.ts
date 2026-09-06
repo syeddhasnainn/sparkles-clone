@@ -9,6 +9,7 @@ export const Route = createFileRoute("/api/auth/sign-in")({
         const parameters = new URL(request.url).searchParams;
         const returnPathname = authReturnPath(parameters.get("returnTo"));
         const url = await getSignInUrl({ data: { returnPathname } });
+
         return new Response(null, {
           status: 307,
           headers: { Location: url, "Cache-Control": "no-store" },

@@ -18,6 +18,7 @@ function PrivacyOption({
   onChange?: (checked: boolean) => void;
 }) {
   const descriptionId = useId();
+
   return (
     <div className="privacy-option">
       <span>
@@ -46,21 +47,28 @@ export function PrivacyDialog() {
   const [analytics, setAnalytics] = useState(preferences.analytics);
   const [replay, setReplay] = useState(preferences.replay);
   const [status, setStatus] = useState("");
+
   const save = (nextAnalytics: boolean, nextReplay: boolean) => {
     const persisted = updatePreferences({ analytics: nextAnalytics, replay: nextReplay });
+
     setStatus(
       persisted
         ? "Privacy choices saved on this device."
         : "Your browser could not save these choices.",
     );
-    if (persisted) setOpen(false);
+
+    if (persisted) {
+      setOpen(false);
+    }
   };
+
   return (
     <>
       <Dialog.Root
         open={open}
         onOpenChange={(next) => {
           setOpen(next);
+
           if (next) {
             setAnalytics(preferences.analytics);
             setReplay(preferences.replay);
@@ -92,7 +100,10 @@ export function PrivacyDialog() {
                 checked={analytics}
                 onChange={(value) => {
                   setAnalytics(value);
-                  if (!value) setReplay(false);
+
+                  if (!value) {
+                    setReplay(false);
+                  }
                 }}
               />
               <PrivacyOption
@@ -101,7 +112,10 @@ export function PrivacyDialog() {
                 checked={replay}
                 onChange={(value) => {
                   setReplay(value);
-                  if (value) setAnalytics(true);
+
+                  if (value) {
+                    setAnalytics(true);
+                  }
                 }}
               />
             </div>

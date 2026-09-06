@@ -11,6 +11,7 @@ const themes: { value: Theme; label: string; description: string }[] = [
 export function AppearanceSettings() {
   const { preferences, updatePreferences } = usePreferences();
   const [error, setError] = useState("");
+
   return (
     <SettingsSection title="Appearance" description="Sparkles remembers this on this device.">
       <fieldset className="appearance-options">

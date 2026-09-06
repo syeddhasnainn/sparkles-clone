@@ -23,6 +23,7 @@ export function GitHubSettings({ status }: { status?: string }) {
         : status === "unavailable"
           ? "GitHub connections aren’t available yet. Please try again later."
           : null;
+
   return (
     <>
       <SettingsHeading title="Integrations" description="Connect the accounts you use to build." />
@@ -122,6 +123,7 @@ export function GitHubSettings({ status }: { status?: string }) {
                         onClick={async () => {
                           setDisconnecting(true);
                           setDisconnectError(false);
+
                           try {
                             await disconnect();
                             setConfirmDisconnect(false);

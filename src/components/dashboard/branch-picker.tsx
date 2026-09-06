@@ -29,6 +29,7 @@ export function BranchPicker({
 }) {
   const [search, setSearch] = useState("");
   const filtered = branches.filter((name) => name.includes(search.toLowerCase()));
+
   return (
     <div className="branch-tab">
       <Picker

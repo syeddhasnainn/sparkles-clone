@@ -4,7 +4,9 @@ const mobileQuery = "(max-width: 767px)";
 
 function subscribe(callback: () => void) {
   const query = window.matchMedia(mobileQuery);
+
   query.addEventListener("change", callback);
+
   return () => query.removeEventListener("change", callback);
 }
 

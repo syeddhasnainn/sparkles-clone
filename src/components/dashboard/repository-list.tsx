@@ -20,13 +20,16 @@ export function RepositoryList({
 }) {
   const fetchInstallations = useServerFn(listGitHubInstallations);
   const fetchRepositories = useServerFn(listGitHubRepositories);
+
   const [installations, setInstallations] = useState<{ id: number; login: string }[]>([]);
   const [installationId, setInstallationId] = useState<number | null>(null);
   const [installationPage, setInstallationPage] = useState(1);
   const [moreInstallations, setMoreInstallations] = useState(false);
+
   const [repositories, setRepositories] = useState<GitHubRepository[]>([]);
   const [page, setPage] = useState(1);
   const [moreRepositories, setMoreRepositories] = useState(false);
+
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState(false);
@@ -35,11 +38,16 @@ export function RepositoryList({
 
   useEffect(() => {
     let active = true;
+
     setLoading(true);
     setError(false);
+
     fetchInstallations({ data: { page: 1 } })
       .then((result) => {
-        if (!active) return;
+        if (!active) {
+          return;
+        }
+
         setInstallations(result.installations);
         setInstallationPage(1);
         setMoreInstallations(result.hasMore);
@@ -56,22 +64,31 @@ export function RepositoryList({
           setLoading(false);
         }
       });
+
     return () => {
       active = false;
     };
   }, [fetchInstallations, retry, selected?.installationId]);
 
   useEffect(() => {
-    if (!installationId) return;
+    if (!installationId) {
+      return;
+    }
+
     let active = true;
+
     setLoading(true);
     setError(false);
     setRepositories([]);
     setSearch("");
     setPage(1);
+
     fetchRepositories({ data: { installationId, page: 1 } })
       .then((result) => {
-        if (!active) return;
+        if (!active) {
+          return;
+        }
+
         setRepositories(result.repositories);
         setMoreRepositories(result.hasMore);
         setLoading(false);
@@ -82,6 +99,7 @@ export function RepositoryList({
           setLoading(false);
         }
       });
+
     return () => {
       active = false;
     };
@@ -90,6 +108,7 @@ export function RepositoryList({
   const filtered = repositories.filter((repo) =>
     repo.name.toLowerCase().includes(search.toLowerCase()),
   );
+
   return (
     <>
       {installations.length > 0 && (
@@ -118,8 +137,10 @@ export function RepositoryList({
               onClick={async () => {
                 setLoadingMore(true);
                 setError(false);
+
                 try {
                   const next = await fetchInstallations({ data: { page: installationPage + 1 } });
+
                   setInstallations((items) => [...items, ...next.installations]);
                   setInstallationPage((value) => value + 1);
                   setMoreInstallations(next.hasMore);
@@ -202,12 +223,17 @@ export function RepositoryList({
                 className="mt-1 w-full"
                 disabled={loadingMore}
                 onClick={async () => {
-                  if (!installationId) return;
+                  if (!installationId) {
+                    return;
+                  }
+
                   setLoadingMore(true);
+
                   try {
                     const next = await fetchRepositories({
                       data: { installationId, page: page + 1 },
                     });
+
                     setRepositories((items) => [...items, ...next.repositories]);
                     setPage((value) => value + 1);
                     setMoreRepositories(next.hasMore);

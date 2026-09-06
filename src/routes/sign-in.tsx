@@ -8,7 +8,10 @@ export const Route = createFileRoute("/sign-in")({
     error: search.error === "auth_failed" ? "auth_failed" : undefined,
   }),
   beforeLoad: async ({ search }) => {
-    if (await getCurrentUser()) throw redirect({ href: authReturnPath(search.returnTo) });
+    if (await getCurrentUser()) {
+      throw redirect({ href: authReturnPath(search.returnTo) });
+    }
+
     if (!search.error) {
       throw redirect({
         href: `/api/auth/sign-in?returnTo=${encodeURIComponent(authReturnPath(search.returnTo))}`,
@@ -22,6 +25,7 @@ export const Route = createFileRoute("/sign-in")({
 
 function SignIn() {
   const { returnTo } = Route.useSearch();
+
   return (
     <main className="auth-page">
       <section className="auth-card" aria-labelledby="sign-in-heading">

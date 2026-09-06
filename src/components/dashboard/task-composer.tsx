@@ -10,6 +10,7 @@ export function TaskComposer() {
   const [attachments, setAttachments] = useState<File[]>([]);
   const [repository, setRepository] = useState<GitHubRepository | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+
   return (
     <div className="composer-wrapper">
       <div className="composer-intro">

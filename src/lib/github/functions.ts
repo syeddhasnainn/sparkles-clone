@@ -13,6 +13,7 @@ import { readConnection } from "./store.server";
 export const getGitHubConnection = createServerFn({ method: "GET" }).handler(async () => {
   const { userId } = await requireGitHubUser();
   const row = await readConnection(userId);
+
   return {
     configured: githubConfigured(),
     installationUrl: installationUrl(),
@@ -37,6 +38,7 @@ export const listGitHubInstallations = createServerFn({ method: "GET" })
       `/user/installations?per_page=100&page=${data.page}`,
       installationsSchema,
     );
+
     return {
       installations: result.installations
         .filter((item) => !item.suspended_at)
@@ -59,6 +61,7 @@ export const listGitHubRepositories = createServerFn({ method: "GET" })
       `/user/installations/${data.installationId}/repositories?per_page=100&page=${data.page}`,
       repositoriesSchema,
     );
+
     return {
       repositories: result.repositories.map((repo) => ({
         id: repo.id,
@@ -74,6 +77,7 @@ export const listGitHubRepositories = createServerFn({ method: "GET" })
 
 export const disconnectGitHubAccount = createServerFn({ method: "POST" }).handler(async () => {
   const { userId } = await requireGitHubUser();
+
   await disconnectGitHub(userId);
 });
 

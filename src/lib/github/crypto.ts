@@ -22,9 +22,12 @@ export async function sha256(value: string): Promise<string> {
 }
 
 async function encryptionKey(secret: string): Promise<CryptoKey> {
-  if (!/^[a-f\d]{64}$/i.test(secret))
+  if (!/^[a-f\d]{64}$/i.test(secret)) {
     throw new Error("GitHub encryption key must contain 32 random bytes encoded as hex.");
+  }
+
   const bytes = Uint8Array.from(secret.match(/.{2}/g)!, (pair) => parseInt(pair, 16));
+
   return crypto.subtle.importKey("raw", bytes, "AES-GCM", false, ["encrypt", "decrypt"]);
 }
 
@@ -35,16 +38,22 @@ export async function encrypt(value: string, secret: string, context: string): P
     await encryptionKey(secret),
     encoder.encode(value),
   );
+
   return `${toBase64(iv)}.${toBase64(new Uint8Array(encrypted))}`;
 }
 
 export async function decrypt(value: string, secret: string, context: string): Promise<string> {
   const [iv, ciphertext, extra] = value.split(".");
-  if (!iv || !ciphertext || extra) throw new Error("Invalid encrypted GitHub credentials.");
+
+  if (!iv || !ciphertext || extra) {
+    throw new Error("Invalid encrypted GitHub credentials.");
+  }
+
   const decoded = await crypto.subtle.decrypt(
     { name: "AES-GCM", iv: fromBase64(iv), additionalData: encoder.encode(context) },
     await encryptionKey(secret),
     fromBase64(ciphertext),
   );
+
   return new TextDecoder().decode(decoded);
 }
