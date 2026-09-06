@@ -1,3 +1,4 @@
+import { z } from "zod";
 import {
   createContext,
   useContext,
@@ -38,24 +39,23 @@ function getSnapshot() {
   }
 }
 
-function parsePreferences(raw: string | null): Preferences {
+const preferencesSchema = z
+  .object({
+    theme: z.enum(["system", "light", "dark"]).catch("system"),
+    analytics: z.boolean().optional().catch(undefined),
+    replay: z.boolean().catch(defaults.replay),
+  })
+  .transform((value) => ({
+    theme: value.theme,
+    analytics: value.analytics ?? defaults.analytics,
+    replay: value.replay && value.analytics !== false,
+  }));
+
+export function parsePreferences(raw: string | null): Preferences {
   try {
-    const parsed: unknown = JSON.parse(raw ?? "null");
+    const result = preferencesSchema.safeParse(JSON.parse(raw ?? "null"));
 
-    if (!parsed || typeof parsed !== "object") {
-      return defaults;
-    }
-
-    const value = parsed as Partial<Preferences>;
-
-    return {
-      theme: value.theme === "light" || value.theme === "dark" ? value.theme : "system",
-      analytics: typeof value.analytics === "boolean" ? value.analytics : defaults.analytics,
-      replay:
-        typeof value.replay === "boolean"
-          ? value.replay && value.analytics !== false
-          : defaults.replay && value.analytics !== false,
-    };
+    return result.success ? result.data : defaults;
   } catch {
     return defaults;
   }
