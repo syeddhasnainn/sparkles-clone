@@ -1,64 +1,19 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { SQLInputValue } from "node:sqlite";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { readFile } from "node:fs/promises";
+import { Miniflare, convertV4MiniflareOptions } from "miniflare";
+import { createGitHubStore } from "./store";
 
-vi.mock("cloudflare:workers", async () => {
-  const { DatabaseSync } = await import("node:sqlite");
-  const { readFile } = await import("node:fs/promises");
-  const database = new DatabaseSync(":memory:");
+const runtime = new Miniflare(
+  convertV4MiniflareOptions({
+    modules: true,
+    script: "export default { fetch() { return new Response('test'); } }",
+    compatibilityDate: "2026-09-06",
+    d1Databases: ["DB"],
+  }),
+);
 
-  database.exec(
-    await readFile(
-      new URL("../../../migrations/0001_github_connections.sql", import.meta.url),
-      "utf8",
-    ),
-  );
-
-  function prepare(sql: string) {
-    let values: SQLInputValue[] = [];
-
-    return {
-      bind(...inputs: SQLInputValue[]) {
-        values = inputs;
-
-        return this;
-      },
-      async first() {
-        return database.prepare(sql).get(...values) ?? null;
-      },
-      async run() {
-        const result = database.prepare(sql).run(...values);
-
-        return { meta: { changes: Number(result.changes) } };
-      },
-    };
-  }
-
-  return {
-    env: {
-      DB: {
-        prepare,
-        async batch(statements: { run: () => Promise<unknown> }[]) {
-          database.exec("BEGIN");
-
-          try {
-            const results = [];
-
-            for (const statement of statements) results.push(await statement.run());
-            database.exec("COMMIT");
-
-            return results;
-          } catch (error) {
-            database.exec("ROLLBACK");
-            throw error;
-          }
-        },
-      },
-    },
-  };
-});
-
-import { env } from "cloudflare:workers";
-import {
+const database = await runtime.getD1Database("DB");
+const {
   consumeOAuthState,
   deleteConnection,
   lockConnection,
@@ -66,13 +21,27 @@ import {
   refreshConnection,
   saveConnection,
   saveOAuthState,
-} from "./store.server";
+} = createGitHubStore(database);
+
+beforeAll(async () => {
+  const migration = await readFile(
+    new URL("../../../migrations/0001_github_connections.sql", import.meta.url),
+    "utf8",
+  );
+
+  for (const statement of migration.split(";").filter((sql) => sql.trim())) {
+    await database.prepare(statement).run();
+  }
+});
 
 beforeEach(async () => {
   vi.restoreAllMocks();
-  await env.DB.prepare("DELETE FROM github_connections").run();
-  await env.DB.prepare("DELETE FROM github_oauth_states").run();
+
+  await database.prepare("DELETE FROM github_connections").run();
+  await database.prepare("DELETE FROM github_oauth_states").run();
 });
+
+afterAll(() => runtime.dispose());
 
 function connection(userId: string, connectionId = "original") {
   return {

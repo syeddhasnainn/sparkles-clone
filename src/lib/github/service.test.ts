@@ -1,45 +1,54 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { encrypt } from "./crypto";
+import { GitHubError } from "./api.server";
+import { createGitHubService, type GitHubDependencies } from "./service";
+import type { GitHubStore } from "./store";
 
-vi.mock("cloudflare:workers", () => ({
-  env: {
-    GITHUB_TOKEN_ENCRYPTION_KEY: "ad".repeat(32),
-    GITHUB_CLIENT_ID: "client",
-    GITHUB_CLIENT_SECRET: "secret",
-  },
-}));
-vi.mock("@workos/authkit-tanstack-react-start", () => ({ getAuth: vi.fn() }));
-vi.mock("./store.server", () => ({
-  readConnection: vi.fn(),
-  lockConnection: vi.fn(),
-  refreshConnection: vi.fn(),
-  requireReconnect: vi.fn(),
-  unlockConnection: vi.fn(),
-  deleteConnection: vi.fn(),
-}));
-vi.mock("./api.server", async (original) => ({
-  ...(await original<typeof import("./api.server")>()),
-  requestGitHub: vi.fn(),
-  exchangeToken: vi.fn(),
-  revokeToken: vi.fn(),
-}));
+const store = {
+  readConnection: vi.fn<GitHubStore["readConnection"]>(),
+  saveConnection: vi.fn<GitHubStore["saveConnection"]>(),
+  lockConnection: vi.fn<GitHubStore["lockConnection"]>(),
+  unlockConnection: vi.fn<GitHubStore["unlockConnection"]>(),
+  refreshConnection: vi.fn<GitHubStore["refreshConnection"]>(),
+  requireReconnect: vi.fn<GitHubStore["requireReconnect"]>(),
+  deleteConnection: vi.fn<GitHubStore["deleteConnection"]>(),
+  saveOAuthState: vi.fn<GitHubStore["saveOAuthState"]>(),
+  consumeOAuthState: vi.fn<GitHubStore["consumeOAuthState"]>(),
+};
 
-import { getAuth } from "@workos/authkit-tanstack-react-start";
-import { exchangeToken, requestGitHub, revokeToken, GitHubError } from "./api.server";
-import {
+const {
   readConnection,
   lockConnection,
   refreshConnection,
   requireReconnect,
   unlockConnection,
   deleteConnection,
-} from "./store.server";
-import { disconnectGitHub, githubRequest, requireGitHubUser } from "./service.server";
+} = store;
+const getAuth = vi.fn<GitHubDependencies["getAuth"]>();
+const exchangeToken = vi.fn<GitHubDependencies["exchangeToken"]>();
+const requestGitHub = vi.fn<GitHubDependencies["requestGitHub"]>();
+const revokeToken = vi.fn<GitHubDependencies["revokeToken"]>();
+
+const { requireGitHubUser, githubRequest, disconnectGitHub } = createGitHubService({
+  config: {
+    encryptionKey: "ad".repeat(32),
+    clientId: "client",
+    clientSecret: "secret",
+    appSlug: "sparkles-demo",
+    redirectUri: "http://localhost:3000/api/github/callback",
+  },
+  store,
+  getAuth,
+  exchangeToken,
+  requestGitHub: async (token, path, schema) =>
+    schema.parse(await requestGitHub(token, path, schema)),
+  revokeToken,
+});
 
 beforeEach(async () => {
   vi.resetAllMocks();
-  vi.mocked(readConnection).mockResolvedValue({
+  readConnection.mockResolvedValue({
     user_id: "user-a",
     connection_id: "connection-a",
     github_user_id: 1,
@@ -57,20 +66,20 @@ beforeEach(async () => {
     lock_expires_at: 0,
     connected_at: Date.now(),
   });
-  vi.mocked(lockConnection).mockResolvedValue(true);
-  vi.mocked(refreshConnection).mockResolvedValue(true);
-  vi.mocked(exchangeToken).mockResolvedValue({
+  lockConnection.mockResolvedValue(true);
+  refreshConnection.mockResolvedValue(true);
+  exchangeToken.mockResolvedValue({
     access_token: "new-token",
     refresh_token: "new-refresh",
     expires_in: 28_800,
     refresh_token_expires_in: 15_897_600,
   });
-  vi.mocked(requestGitHub).mockResolvedValue({ ok: true });
+  requestGitHub.mockResolvedValue({ ok: true });
 });
 
 describe("GitHub session and refresh boundaries", () => {
   it("rejects unauthenticated access before using a GitHub connection", async () => {
-    vi.mocked(getAuth).mockResolvedValue({ user: null });
+    getAuth.mockResolvedValue({ user: null });
 
     await expect(requireGitHubUser()).rejects.toBeDefined();
     expect(readConnection).not.toHaveBeenCalled();
@@ -93,7 +102,7 @@ describe("GitHub session and refresh boundaries", () => {
   });
 
   it("does not rotate a refresh token while another request holds the lock", async () => {
-    vi.mocked(lockConnection).mockResolvedValue(false);
+    lockConnection.mockResolvedValue(false);
 
     await expect(githubRequest("user-a", "/user", z.unknown())).rejects.toThrow("updating");
     expect(exchangeToken).not.toHaveBeenCalled();
@@ -101,14 +110,14 @@ describe("GitHub session and refresh boundaries", () => {
   });
 
   it("does not use a token after a concurrent connection replacement", async () => {
-    vi.mocked(refreshConnection).mockResolvedValue(false);
+    refreshConnection.mockResolvedValue(false);
 
     await expect(githubRequest("user-a", "/user", z.unknown())).rejects.toThrow("changed");
     expect(requestGitHub).not.toHaveBeenCalled();
   });
 
   it("preserves the connection on a transient token service failure", async () => {
-    vi.mocked(exchangeToken).mockRejectedValue(new GitHubError(503));
+    exchangeToken.mockRejectedValue(new GitHubError(503));
 
     await expect(githubRequest("user-a", "/user", z.unknown())).rejects.toThrow();
     expect(requireReconnect).not.toHaveBeenCalled();
@@ -116,7 +125,7 @@ describe("GitHub session and refresh boundaries", () => {
   });
 
   it("retains local credentials when GitHub revocation fails so disconnect can be retried", async () => {
-    vi.mocked(revokeToken).mockRejectedValue(new GitHubError(503));
+    revokeToken.mockRejectedValue(new GitHubError(503));
 
     await expect(disconnectGitHub("user-a")).rejects.toThrow();
     expect(deleteConnection).not.toHaveBeenCalled();

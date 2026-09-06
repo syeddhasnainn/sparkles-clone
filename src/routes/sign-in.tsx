@@ -1,12 +1,9 @@
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { getCurrentUser } from "@/lib/auth";
-import { authReturnPath } from "@/lib/auth-redirect";
+import { authReturnPath, signInSearchSchema } from "@/lib/auth-redirect";
 
 export const Route = createFileRoute("/sign-in")({
-  validateSearch: (search: Record<string, unknown>): { returnTo?: string; error?: string } => ({
-    returnTo: authReturnPath(search.returnTo),
-    error: search.error === "auth_failed" ? "auth_failed" : undefined,
-  }),
+  validateSearch: signInSearchSchema,
   beforeLoad: async ({ search }) => {
     if (await getCurrentUser()) {
       throw redirect({ href: authReturnPath(search.returnTo) });

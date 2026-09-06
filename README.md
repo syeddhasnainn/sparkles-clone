@@ -1,6 +1,6 @@
 # Sparkles Clone
 
-TanStack Start with React, TypeScript, Tailwind CSS v4, and shadcn/ui using the default Base UI preset (`base-nova`). Oxlint and Oxfmt use their default settings.
+TanStack Start with React, TypeScript, Tailwind CSS v4, and shadcn/ui using the default Base UI preset (`base-nova`). Oxlint runs the generic anti-slop rules; Oxfmt handles code formatting.
 
 ## Development
 
@@ -82,3 +82,9 @@ The app remains on WorkOS Staging for the demo. Before deploying, configure the 
 Create the D1 database with `pnpm exec wrangler d1 create sparkles-demo` and add its returned database ID to `wrangler.jsonc`. Apply migrations with `pnpm exec wrangler d1 migrations apply sparkles-demo --remote`. Set the variables listed in `.env.example` using `pnpm exec wrangler secret put <NAME>` or a secret-management workflow, then deploy. Local `.env.local` values are not deployed automatically.
 
 Use a separate database, encryption key, GitHub App, and WorkOS environment for any future production deployment.
+
+## Anti-slop lint rules
+
+The [anti-slop plugin](https://github.com/dmmulroy/anti-slop) is vendored in `tools/oxlint/anti-slop/`. All 15 generic rules run as errors through `pnpm lint` and `pnpm check`, configured in `.oxlintrc.json`. Generated bindings, generated routes, vendored rules, and agent tooling are excluded from linting.
+
+Keep `oxlint` and `@oxlint/plugins` pinned to the same version when upgrading. Only the generic rules are vendored; the Effect folder is omitted. GitHub service tests inject typed dependencies; storage tests run against Miniflare D1 with the application migration.
