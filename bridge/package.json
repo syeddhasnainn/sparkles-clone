@@ -1,0 +1,11 @@
+{
+  "name": "sparkles-modal-bridge",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@agentclientprotocol/sdk": "1.4.0",
+    "modal": "0.10.0",
+    "zod": "4.5.4"
+  },
+  "packageManager": "pnpm@12.0.0"
+}

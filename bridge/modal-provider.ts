@@ -1,0 +1,233 @@
+import { createAgentEnvironment } from "./agent-environment.ts";
+import { AlreadyExistsError, ModalClient, NotFoundError } from "modal";
+import { z } from "zod";
+import { agentRunnerSource } from "./agent-runner-source.ts";
+import { runnerRequest } from "./agent-transport.ts";
+import { createCheckpointScript, restoreCheckpointScript } from "./checkpoint-scripts.ts";
+import { checkpointMetadataSchema, agentSnapshotSchema } from "./contracts.ts";
+import type { CheckpointArchive, CheckpointRequest, RestoreRequest } from "./contracts.ts";
+import { checkoutScript } from "./checkout.ts";
+import { checkpointGraceMs, workspaceLifetimeMs } from "./contracts.ts";
+import type { BridgeRequest, BridgeResponse } from "./contracts.ts";
+
+export interface SandboxProvider {
+  execute(request: BridgeRequest): Promise<BridgeResponse>;
+  checkpoint?(request: CheckpointRequest): Promise<CheckpointArchive>;
+  restore?(request: RestoreRequest, body: ReadableStream<Uint8Array>): Promise<void>;
+}
+
+export class ModalProvider implements SandboxProvider {
+  private readonly client: ModalClient;
+
+  private readonly appName: string;
+
+  constructor(appName: string, credentials?: { tokenId: string; tokenSecret: string }) {
+    this.client = new ModalClient(credentials);
+    this.appName = appName;
+  }
+
+  close() {
+    this.client.close();
+  }
+
+  async execute(request: BridgeRequest): Promise<BridgeResponse> {
+    let sandbox;
+
+    try {
+      sandbox = await this.client.sandboxes.fromName(this.appName, request.name);
+    } catch (error) {
+      if (!(error instanceof NotFoundError)) throw error;
+      if (request.action !== "create" && request.action !== "allocate")
+        return { running: false, sandboxId: null, commit: null };
+
+      const app = await this.client.apps.fromName(this.appName, { createIfMissing: true });
+      const image = this.client.images
+        .fromRegistry("node:22-bookworm")
+        .dockerfileCommands([
+          "RUN apt-get update && apt-get install -y --no-install-recommends python3 && rm -rf /var/lib/apt/lists/*",
+          "RUN npm install --global opencode-ai@1.18.29",
+          "RUN npm install --prefix /opt/sparkles @agentclientprotocol/sdk@1.4.0",
+        ]);
+
+      try {
+        sandbox = await this.client.sandboxes.create(app, image, {
+          name: request.name,
+          cpu: 2,
+          cpuLimit: 2,
+          memoryMiB: 4096,
+          memoryLimitMiB: 4096,
+          timeoutMs: workspaceLifetimeMs + checkpointGraceMs,
+          tags: { application: "sparkles" },
+        });
+      } catch (createError) {
+        if (!(createError instanceof AlreadyExistsError)) throw createError;
+        sandbox = await this.client.sandboxes.fromName(this.appName, request.name);
+      }
+    }
+
+    try {
+      if (request.action === "stop") {
+        await sandbox.terminate({ wait: true });
+        return { running: false, sandboxId: sandbox.sandboxId, commit: null };
+      }
+
+      if (request.action === "agent" || request.action === "sync") {
+        const command =
+          request.action === "agent"
+            ? request.command
+            : { kind: "sync" as const, cursor: request.cursor, acknowledge: request.acknowledge };
+        return {
+          running: true,
+          sandboxId: sandbox.sandboxId,
+          commit: null,
+          agent: agentSnapshotSchema.parse(await runnerRequest(sandbox, command)),
+        };
+      }
+      if (request.action === "start") {
+        await this.startRunner(sandbox, request.gateway);
+        return { running: true, sandboxId: sandbox.sandboxId, commit: null };
+      }
+      if (request.action !== "create") {
+        return {
+          running: (await sandbox.poll()) === null,
+          sandboxId: sandbox.sandboxId,
+          commit: null,
+        };
+      }
+
+      const process = await sandbox.exec(
+        ["flock", "-w", "130", "/tmp/sparkles-checkout.lock", "node", "-e", checkoutScript],
+        { timeoutMs: 150_000 },
+      );
+      await process.stdin.writeText(
+        JSON.stringify({
+          token: request.token,
+          repository: request.repository.name,
+          branch: request.repository.defaultBranch,
+          branchName: `sparkles/${request.name.slice(9)}`,
+        }),
+      );
+      await process.stdin.close();
+      const [output, exitCode] = await Promise.all([process.stdout.readText(), process.wait()]);
+
+      if (exitCode !== 0) throw new Error("Repository checkout failed.");
+
+      const { commit } = z
+        .object({ commit: z.string().regex(/^[a-f0-9]{40,64}$/) })
+        .parse(JSON.parse(output));
+      await this.startRunner(sandbox, request.gateway);
+      return { running: true, sandboxId: sandbox.sandboxId, commit };
+    } finally {
+      sandbox.detach();
+    }
+  }
+  private async startRunner(
+    sandbox: import("modal").Sandbox,
+    gateway?: { url: string; token: string; model: string },
+  ) {
+    if (!gateway) throw new Error("Model gateway is not configured.");
+    await sandbox.filesystem.writeText(agentRunnerSource, "/opt/sparkles/agent-runner.mjs");
+    const runner = await sandbox.exec(
+      [
+        "sh",
+        "-c",
+        "flock -n /tmp/sparkles-agent.lock node /opt/sparkles/agent-runner.mjs > /tmp/sparkles-agent.log 2>&1 < /dev/null &",
+      ],
+      { env: createAgentEnvironment(gateway) },
+    );
+    await runner.wait();
+  }
+
+  async checkpoint(request: CheckpointRequest): Promise<CheckpointArchive> {
+    const sandbox = await this.client.sandboxes.fromName(this.appName, request.name);
+    let transferred = false;
+    try {
+      const prepared = await runnerRequest(sandbox, { kind: "prepare_checkpoint", id: request.id });
+      let metadata;
+      try {
+        const process = await sandbox.exec(["python3", "-c", createCheckpointScript], {
+          timeoutMs: 150000,
+        });
+        await process.stdin.writeText(JSON.stringify(prepared));
+        await process.stdin.close();
+        const [output, code] = await Promise.all([process.stdout.readText(), process.wait()]);
+        if (code !== 0) throw new Error("Workspace checkpoint failed.");
+        metadata = checkpointMetadataSchema.parse(JSON.parse(output));
+      } finally {
+        await runnerRequest(sandbox, { kind: "release_checkpoint", id: request.id });
+      }
+      const archivePath = `/tmp/sparkles-checkpoint-${request.id}.tar.gz`;
+      const download = await sandbox.exec(["cat", archivePath], {
+        mode: "binary",
+        timeoutMs: 180000,
+      });
+      const reader = download.stdout.getReader();
+      const finish = async () => {
+        const cleanup = await sandbox.exec(["rm", "-f", archivePath]);
+        await cleanup.wait();
+        sandbox.detach();
+      };
+      const body = new ReadableStream<Uint8Array>({
+        async pull(controller) {
+          try {
+            const next = await reader.read();
+            if (next.done) {
+              if ((await download.wait()) !== 0) throw new Error("Checkpoint transfer failed.");
+              await finish();
+              controller.close();
+            } else controller.enqueue(next.value);
+          } catch (error) {
+            sandbox.detach();
+            controller.error(error);
+          }
+        },
+        async cancel() {
+          await reader.cancel();
+          await finish();
+        },
+      });
+      transferred = true;
+      return { metadata, body };
+    } finally {
+      if (!transferred) sandbox.detach();
+    }
+  }
+
+  async restore(request: RestoreRequest, body: ReadableStream<Uint8Array>): Promise<void> {
+    const sandbox = await this.client.sandboxes.fromName(this.appName, request.name);
+    try {
+      const process = await sandbox.exec(
+        ["python3", "-c", restoreCheckpointScript, JSON.stringify(request)],
+        { mode: "binary", timeoutMs: 240000 },
+      );
+      const writer = process.stdin.getWriter();
+      const reader = body.getReader();
+      let received = 0;
+      try {
+        while (true) {
+          const next = await reader.read();
+          if (next.done) break;
+          received += next.value.byteLength;
+          if (received > request.checkpoint.size)
+            throw new Error("Checkpoint transfer exceeded its expected size.");
+          await writer.write(next.value);
+        }
+        await writer.close();
+      } catch (error) {
+        await writer.abort();
+        await reader.cancel();
+        throw error;
+      }
+      // Decode the byte view itself; the SDK binary readText helper includes its backing buffer.
+      const [output, code] = await Promise.all([
+        new Response(process.stdout).text(),
+        process.wait(),
+      ]);
+      if (code !== 0 || received !== request.checkpoint.size)
+        throw new Error("Workspace restoration failed.");
+      z.object({ restored: z.literal(true) }).parse(JSON.parse(output));
+    } finally {
+      sandbox.detach();
+    }
+  }
+}

@@ -22,6 +22,7 @@ import { Route as AppSettingsIndexRouteImport } from './routes/app.settings.inde
 import { Route as AppSettingsAccountRouteImport } from './routes/app.settings.account'
 import { Route as AppSettingsIntegrationsRouteImport } from './routes/app.settings.integrations'
 import { Route as AppSettingsMemoriesRouteImport } from './routes/app.settings.memories'
+import { Route as AppTasksTaskIdRouteImport } from './routes/app.tasks.$taskId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -88,6 +89,11 @@ const AppSettingsMemoriesRoute = AppSettingsMemoriesRouteImport.update({
   path: '/memories',
   getParentRoute: () => AppSettingsRoute,
 } as any)
+const AppTasksTaskIdRoute = AppTasksTaskIdRouteImport.update({
+  id: '/tasks/$taskId',
+  path: '/tasks/$taskId',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -102,6 +108,7 @@ export interface FileRoutesByFullPath {
   '/app/settings/account': typeof AppSettingsAccountRoute
   '/app/settings/integrations': typeof AppSettingsIntegrationsRoute
   '/app/settings/memories': typeof AppSettingsMemoriesRoute
+  '/app/tasks/$taskId': typeof AppTasksTaskIdRoute
   '/app/settings/': typeof AppSettingsIndexRoute
 }
 export interface FileRoutesByTo {
@@ -115,6 +122,7 @@ export interface FileRoutesByTo {
   '/app/settings/account': typeof AppSettingsAccountRoute
   '/app/settings/integrations': typeof AppSettingsIntegrationsRoute
   '/app/settings/memories': typeof AppSettingsMemoriesRoute
+  '/app/tasks/$taskId': typeof AppTasksTaskIdRoute
   '/app/settings': typeof AppSettingsIndexRoute
 }
 export interface FileRoutesById {
@@ -131,6 +139,7 @@ export interface FileRoutesById {
   '/app/settings/account': typeof AppSettingsAccountRoute
   '/app/settings/integrations': typeof AppSettingsIntegrationsRoute
   '/app/settings/memories': typeof AppSettingsMemoriesRoute
+  '/app/tasks/$taskId': typeof AppTasksTaskIdRoute
   '/app/settings/': typeof AppSettingsIndexRoute
 }
 export interface FileRouteTypes {
@@ -148,6 +157,7 @@ export interface FileRouteTypes {
     | '/app/settings/account'
     | '/app/settings/integrations'
     | '/app/settings/memories'
+    | '/app/tasks/$taskId'
     | '/app/settings/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -161,6 +171,7 @@ export interface FileRouteTypes {
     | '/app/settings/account'
     | '/app/settings/integrations'
     | '/app/settings/memories'
+    | '/app/tasks/$taskId'
     | '/app/settings'
   id:
     | '__root__'
@@ -176,6 +187,7 @@ export interface FileRouteTypes {
     | '/app/settings/account'
     | '/app/settings/integrations'
     | '/app/settings/memories'
+    | '/app/tasks/$taskId'
     | '/app/settings/'
   fileRoutesById: FileRoutesById
 }
@@ -282,6 +294,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsMemoriesRouteImport
       parentRoute: typeof AppSettingsRoute
     }
+    '/app/tasks/$taskId': {
+      id: '/app/tasks/$taskId'
+      path: '/tasks/$taskId'
+      fullPath: '/app/tasks/$taskId'
+      preLoaderRoute: typeof AppTasksTaskIdRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
@@ -306,11 +325,13 @@ const AppSettingsRouteWithChildren = AppSettingsRoute._addFileChildren(
 interface AppRouteChildren {
   AppSettingsRoute: typeof AppSettingsRouteWithChildren
   AppIndexRoute: typeof AppIndexRoute
+  AppTasksTaskIdRoute: typeof AppTasksTaskIdRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppSettingsRoute: AppSettingsRouteWithChildren,
   AppIndexRoute: AppIndexRoute,
+  AppTasksTaskIdRoute: AppTasksTaskIdRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

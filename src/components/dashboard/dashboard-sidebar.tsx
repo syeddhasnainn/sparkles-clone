@@ -1,5 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { ChevronDown, Eye, FolderPlus, Plus } from "lucide-react";
+import { useWorkspaces } from "@/hooks/use-workspaces";
+import { GitBranch } from "lucide-react";
 import { DashboardIcon } from "./dashboard-icon";
 
 export function DashboardSidebar({
@@ -11,6 +13,8 @@ export function DashboardSidebar({
   onNewChat: () => void;
   onNavigate: () => void;
 }) {
+  const { data, error } = useWorkspaces();
+  const recent = data?.workspaces.slice(0, 20);
   return (
     <aside className="dashboard-sidebar" id="dashboard-sidebar" aria-label="Dashboard sidebar">
       <div className="sidebar-brand">
@@ -54,7 +58,45 @@ export function DashboardSidebar({
         </nav>
         <section className="conversation-section" aria-label="Private conversations">
           <h2 className="section-label">Private</h2>
-          <div className="empty-folder">Drop a chat here to make it private</div>
+          {recent?.length ? (
+            <nav className="conversation-list" aria-label="Recent tasks">
+              {recent.map((task) => (
+                <Link
+                  key={task.id}
+                  to="/app/tasks/$taskId"
+                  params={{ taskId: task.id }}
+                  className="conversation-row"
+                  activeProps={{ className: "conversation-row-active", "aria-current": "page" }}
+                  onClick={onNavigate}
+                  title={task.prompt}
+                >
+                  <GitBranch
+                    size={16}
+                    className="conversation-repository-icon"
+                    aria-hidden="true"
+                  />
+                  <span className="conversation-copy">
+                    <span className="conversation-title">{task.prompt}</span>
+                    <span className="conversation-repository">
+                      {task.repository.name.split("/").at(-1)}
+                    </span>
+                  </span>
+                  <span
+                    className={`conversation-status conversation-status-${task.status}`}
+                    aria-label={task.status}
+                  />
+                </Link>
+              ))}
+            </nav>
+          ) : (
+            <p className="sidebar-empty">
+              {error
+                ? "Could not load recent chats."
+                : recent
+                  ? "Your recent chats will appear here."
+                  : "Loading chats…"}
+            </p>
+          )}
         </section>
         <section className="team-section">
           <h2 className="section-label">
