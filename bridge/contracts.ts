@@ -1,4 +1,8 @@
 import { z } from "zod";
+import {
+  workspaceViewCommandSchema,
+  workspaceViewResultSchema,
+} from "./workspace-view-contracts.ts";
 
 export const workspaceLifetimeMs = 60 * 60 * 1000;
 export const checkpointIntervalMs = 60_000;
@@ -85,6 +89,17 @@ export const modelGatewaySchema = z.object({
 
 export const bridgeRequestSchema = z.discriminatedUnion("action", [
   z.object({
+    action: z.literal("view"),
+    name: sandboxNameSchema,
+    command: workspaceViewCommandSchema,
+    commit: z
+      .string()
+      .regex(/^[a-f0-9]{40,64}$/)
+      .nullable(),
+    expiresAt: z.number(),
+    parentOrigin: z.url(),
+  }),
+  z.object({
     action: z.literal("create"),
     gateway: modelGatewaySchema.optional(),
     name: sandboxNameSchema,
@@ -110,6 +125,7 @@ export const bridgeRequestSchema = z.discriminatedUnion("action", [
 ]);
 
 export const bridgeResponseSchema = z.object({
+  view: workspaceViewResultSchema.optional(),
   agent: agentSnapshotSchema.optional(),
   running: z.boolean(),
   sandboxId: z.string().nullable(),

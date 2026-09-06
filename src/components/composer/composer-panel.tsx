@@ -99,35 +99,6 @@ export function ComposerPanel({
 
   return (
     <div className="composer-panel">
-      <div className="composer-context">
-        <span
-          className="composer-branch"
-          title={branch || "Choose a repository to select a branch"}
-        >
-          <AppIcon icon={WorkflowCircle04Icon} size={16} />
-          <span>{branch || "Branch"}</span>
-        </span>
-        <div className="composer-repository">
-          {repositoryPicker || (
-            <span title={repository}>
-              <AppIcon icon={Folder} size={16} />
-              <span>{repository || "Workspace"}</span>
-            </span>
-          )}
-        </div>
-        <ComposerMenu
-          label="Context usage"
-          className="composer-usage"
-          trigger={
-            <>
-              <AppIcon icon={Circle} size={16} />
-              <span>—</span>
-            </>
-          }
-        >
-          <p className="composer-menu-note">Context usage is not reported by this agent yet.</p>
-        </ComposerMenu>
-      </div>
       <form
         className="composer-surface"
         aria-label={label}
@@ -350,6 +321,35 @@ export function ComposerPanel({
           </div>
         </div>
       </form>
+      <div className="composer-context">
+        <span
+          className="composer-branch"
+          title={branch || "Choose a repository to select a branch"}
+        >
+          <AppIcon icon={WorkflowCircle04Icon} size={16} />
+          <span>{branch || "Branch"}</span>
+        </span>
+        <div className="composer-repository">
+          {repositoryPicker || (
+            <span title={repository}>
+              <AppIcon icon={Folder} size={16} />
+              <span>{repository || "Workspace"}</span>
+            </span>
+          )}
+        </div>
+        <ComposerMenu
+          label="Context usage"
+          className="composer-usage"
+          trigger={
+            <>
+              <AppIcon icon={Circle} size={16} />
+              <span>—</span>
+            </>
+          }
+        >
+          <p className="composer-menu-note">Context usage is not reported by this agent yet.</p>
+        </ComposerMenu>
+      </div>
       {attachments.length > 0 && (
         <p className="composer-file-notice" id={noticeId} role="status">
           Files are previewed locally. Uploads are not connected yet; remove attachments to send.

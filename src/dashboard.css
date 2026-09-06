@@ -1,8 +1,10 @@
 .dashboard {
+  position: fixed;
+  inset: 0;
   display: flex;
   width: 100%;
   height: 100dvh;
-  overflow: hidden;
+  overflow: clip;
   font:
     400 14px/20px "Inter Variable",
     system-ui,
@@ -472,10 +474,8 @@
   align-items: center;
   gap: 12px;
   min-height: 34px;
-  margin: 0 28px;
+  margin: 6px 12px 0;
   padding: 4px 8px;
-  border-radius: 16px 16px 0 0;
-  background: var(--muted);
   font-size: 12px;
 }
 
@@ -1042,7 +1042,9 @@
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  scrollbar-gutter: stable both-edges;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--foreground) 20%, transparent) transparent;
 }
 .task-transcript {
   width: min(860px, 100%);
@@ -1397,7 +1399,6 @@
 
 .composer-context {
   color: var(--muted-foreground);
-  background: color-mix(in srgb, var(--foreground) 7%, var(--background));
 }
 
 .composer-branch {
@@ -1448,7 +1449,6 @@
 }
 
 .composer-panel .attach-button {
-  background: color-mix(in srgb, var(--foreground) 7%, var(--background));
 }
 
 .composer-mic {
@@ -1620,4 +1620,142 @@
 .dashboard-sidebar .conversation-repository-icon {
   width: 14px;
   height: 14px;
+}
+
+.task-composer-dock .task-setup {
+  margin: 0;
+  padding: 12px 16px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  font-size: 12px;
+  gap: 6px;
+}
+
+.task-chat-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 42px;
+  width: 100%;
+}
+.task-chat-header h1 {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 28px;
+}
+.task-chat-header button {
+  flex-shrink: 0;
+  padding: 4px 6px;
+  border-radius: 6px;
+  font-size: 11px;
+  color: var(--muted-foreground);
+  cursor: pointer;
+}
+.task-chat-header button:hover {
+  background: var(--accent);
+  color: var(--foreground);
+}
+.task-header-status {
+  width: 6px;
+  height: 6px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--muted-foreground);
+}
+.task-header-status[data-ready="true"] {
+  background: #67bc87;
+}
+.task-scroll::-webkit-scrollbar {
+  width: 5px;
+}
+.task-scroll::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--foreground) 20%, transparent);
+  border-radius: 8px;
+}
+.task-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.task-messages article.task-message-user {
+  width: fit-content;
+  max-width: 85%;
+  margin: 20px 0 20px auto;
+  padding: 12px 16px;
+  border-radius: 20px 6px 20px 20px;
+  background: color-mix(in srgb, var(--foreground) 6%, var(--workspace-background));
+}
+.task-message-user .task-message-text {
+  margin: 0;
+  line-height: 1.6;
+}
+.task-messages article.task-message-system {
+  padding: 10px 0;
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+.task-message-system .task-message-text {
+  margin: 0;
+}
+
+.dashboard-title-slot {
+  flex: 1;
+  min-width: 0;
+}
+.dashboard-default-title {
+  font-size: 13px;
+  font-weight: 500;
+}
+.dashboard-title-slot:has(.task-chat-header) .dashboard-default-title {
+  display: none;
+}
+
+.composer-panel::before {
+  content: "";
+  display: block;
+  height: 34px;
+  margin: 0 28px;
+  border: 0;
+  border-radius: 16px 16px 0 0;
+  background: var(--composer-strip-background);
+}
+.task-composer-dock .composer-panel::before {
+  display: none;
+}
+
+:root {
+  --composer-strip-background: #ebebeb;
+}
+.dark {
+  --composer-strip-background: color-mix(
+    in srgb,
+    var(--foreground) 10%,
+    var(--workspace-background)
+  );
+}
+
+.composer-top-strip {
+  min-height: 34px;
+  margin: 0 28px;
+  border-radius: 16px 16px 0 0;
+  background: var(--composer-strip-background);
+}
+.composer-top-strip .composer-availability {
+  min-height: 34px;
+  margin: 0;
+  padding: 8px 12px;
+  font-size: 11px;
+  gap: 6px 12px;
+}
+.composer-top-strip .composer-availability > span {
+  flex: 1;
+  min-width: 140px;
+}
+.composer-top-strip .composer-availability button {
+  flex-shrink: 0;
+  cursor: pointer;
 }

@@ -7,6 +7,7 @@ import type { WorkspaceStorage } from "./controller";
 import { authorizeRepository, createCheckoutToken, revokeCheckoutToken } from "./github.server";
 import { containerProvider } from "./provider.server";
 import type { AgentCommand, CreateWorkspace } from "../../../bridge/contracts";
+import type { WorkspaceViewCommand } from "../../../bridge/workspace-view-contracts";
 
 function workspaceStorage(
   storage: DurableObjectStorage,
@@ -44,6 +45,9 @@ export class WorkspaceManager extends DurableObject<Env> {
   }
   agent(id: string, command: AgentCommand) {
     return this.controller.agent(id, command);
+  }
+  view(id: string, command: WorkspaceViewCommand, parentOrigin: string) {
+    return this.controller.view(id, command, parentOrigin);
   }
   resume(id: string) {
     return this.controller.resume(id);

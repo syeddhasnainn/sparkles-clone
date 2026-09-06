@@ -5,6 +5,7 @@
 @import "./dashboard.css";
 @import "./settings.css";
 @import "./auth.css";
+@import "./workspace-views.css";
 
 @source "../node_modules/streamdown/dist/*.js";
 @source "../node_modules/@streamdown/code/dist/*.js";

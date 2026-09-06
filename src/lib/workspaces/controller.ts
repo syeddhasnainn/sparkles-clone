@@ -1,4 +1,5 @@
 import { checkpointIntervalMs, workspaceLifetimeMs } from "../../../bridge/contracts";
+import type { WorkspaceViewCommand } from "../../../bridge/workspace-view-contracts";
 import type {
   AgentCommand,
   AgentSnapshot,
@@ -183,6 +184,28 @@ export class WorkspaceController {
     await this.patch(record, { retryAt: 0 });
     await this.storage.setAlarm(Date.now() + 100);
     return response.agent;
+  }
+  async view(id: string, command: WorkspaceViewCommand, parentOrigin: string) {
+    const record = await this.record(id);
+    if (record.status !== "ready" || record.expiresAt <= Date.now())
+      throw new Error("Resume the workspace to open its files and live views.");
+    await this.dependencies.authorize(record.userId, record.repository);
+    const current = await this.record(id);
+    if (current.status !== "ready" || owner(current).runId !== owner(record).runId)
+      throw new Error("The workspace changed. Reconnect to its current session.");
+    const response = await this.dependencies.provider(id).execute({
+      action: "view",
+      name: sandboxName(record),
+      command,
+      commit: record.commit,
+      expiresAt: record.expiresAt,
+      parentOrigin,
+    });
+    const latest = await this.record(id);
+    if (latest.status !== "ready" || owner(latest).runId !== owner(record).runId)
+      throw new Error("The workspace stopped while opening the view.");
+    if (!response.view) throw new Error("Workspace views are unavailable.");
+    return response.view;
   }
   async stop(id: string): Promise<string> {
     return this.storage.transaction(async (storage) => {

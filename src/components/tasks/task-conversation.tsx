@@ -59,8 +59,18 @@ export function Conversation({
         message.tool ? (
           <ToolActivity key={message.id} call={message.tool} />
         ) : (
-          <article key={message.id}>
-            <strong>{message.role}</strong>
+          <article
+            key={message.id}
+            className={
+              message.role === "You"
+                ? "task-message-user"
+                : message.role === "Workspace"
+                  ? "task-message-system"
+                  : "task-message-assistant"
+            }
+            aria-label={message.role}
+          >
+            {message.role === "OpenCode" && <strong>{message.role}</strong>}
             {message.role === "OpenCode" ? (
               <Streamdown
                 className="task-message-markdown"

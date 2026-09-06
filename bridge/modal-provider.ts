@@ -3,6 +3,7 @@ import { AlreadyExistsError, ModalClient, NotFoundError } from "modal";
 import { z } from "zod";
 import { agentRunnerSource } from "./agent-runner-source.ts";
 import { runnerRequest } from "./agent-transport.ts";
+import { workspaceView, revokeWorkspaceViews } from "./workspace-views.ts";
 import { createCheckpointScript, restoreCheckpointScript } from "./checkpoint-scripts.ts";
 import { checkpointMetadataSchema, agentSnapshotSchema } from "./contracts.ts";
 import type { CheckpointArchive, CheckpointRequest, RestoreRequest } from "./contracts.ts";
@@ -44,7 +45,8 @@ export class ModalProvider implements SandboxProvider {
       const image = this.client.images
         .fromRegistry("node:22-bookworm")
         .dockerfileCommands([
-          "RUN apt-get update && apt-get install -y --no-install-recommends python3 && rm -rf /var/lib/apt/lists/*",
+          "RUN apt-get update && apt-get install -y --no-install-recommends python3 chromium xvfb x11vnc novnc websockify openbox x11-utils x11-xserver-utils xterm fonts-liberation && rm -rf /var/lib/apt/lists/*",
+          "RUN npm install --global pnpm@12.0.0",
           "RUN npm install --global opencode-ai@1.18.29",
           "RUN npm install --prefix /opt/sparkles @agentclientprotocol/sdk@1.4.0",
         ]);
@@ -58,6 +60,7 @@ export class ModalProvider implements SandboxProvider {
           memoryLimitMiB: 4096,
           timeoutMs: workspaceLifetimeMs + checkpointGraceMs,
           tags: { application: "sparkles" },
+          encryptedPorts: [8080, 6080],
         });
       } catch (createError) {
         if (!(createError instanceof AlreadyExistsError)) throw createError;
@@ -66,7 +69,16 @@ export class ModalProvider implements SandboxProvider {
     }
 
     try {
+      if (request.action === "view") {
+        return {
+          running: true,
+          sandboxId: sandbox.sandboxId,
+          commit: null,
+          view: await workspaceView(sandbox, request),
+        };
+      }
       if (request.action === "stop") {
+        await revokeWorkspaceViews(sandbox);
         await sandbox.terminate({ wait: true });
         return { running: false, sandboxId: sandbox.sandboxId, commit: null };
       }
