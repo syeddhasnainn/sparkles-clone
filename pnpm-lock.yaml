@@ -136,6 +136,9 @@ importers:
       '@tanstack/router-plugin':
         specifier: latest
         version: 1.168.35(@tanstack/react-router@1.170.32(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(rolldown@1.2.7)(vite@8.2.2(@types/node@22.20.1)(jiti@2.7.0))
+      '@workos/authkit-tanstack-react-start':
+        specifier: ^0.11.0
+        version: 0.11.0(@tanstack/react-router@1.170.32(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(@tanstack/react-start@1.168.49(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(rolldown@1.2.7)(vite@8.2.2(@types/node@22.20.1)(jiti@2.7.0)))(@workos-inc/node@10.13.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@6.0.3)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -184,7 +187,7 @@ importers:
         version: 6.1.1(vite@8.2.2(@types/node@22.20.1)(jiti@2.7.0))
       jsdom:
         specifier: ^28
-        version: 28.1.0
+        version: 28.1.0(supports-color@10.2.2)
       oxfmt:
         specifier: ^0.66.0
         version: 0.66.0
@@ -199,7 +202,7 @@ importers:
         version: 8.2.2(@types/node@22.20.1)(jiti@2.7.0)
       vitest:
         specifier: ^4
-        version: 4.1.11(@types/node@22.20.1)(jsdom@28.1.0)(vite@8.2.2(@types/node@22.20.1)(jiti@2.7.0))
+        version: 4.1.11(@types/node@22.20.1)(jsdom@28.1.0(supports-color@10.2.2))(vite@8.2.2(@types/node@22.20.1)(jiti@2.7.0))
 
 packages:
 
@@ -1475,6 +1478,26 @@ packages:
   '@vitest/utils@4.1.11':
     resolution: {integrity: sha512-zTCVGpyFsGWBhllOyKlTw/vnr6D9qxsfSDyfbyZmTyjHw5N/VuvzHpHoQjm2ZJzn4RJgx5w4r7V0er69CmLgPQ==}
 
+  '@workos-inc/node@10.13.0':
+    resolution: {integrity: sha512-xPtcziTjN1irPiZ4niTaulYvRMs6D+Fz5E54GGHVOxNi0PV2/Ws1g/cx3q9oMvMhnINkva5iZ2T5aS6yLzdCWA==}
+    engines: {node: '>=22.11.0'}
+
+  '@workos/authkit-session@0.7.1':
+    resolution: {integrity: sha512-3C8anDS67ITE6tvtlTo0sjOzNRhRXvzRHmrQ11kPBAKdLyxIspTBt+BzU/r2vUHJgCAeMlc2wNwqytkAexQhfw==}
+    engines: {node: '>=20.0.0'}
+    peerDependencies:
+      '@workos-inc/node': ^8.0.0 || ^9.0.0 || ^10.0.0
+
+  '@workos/authkit-tanstack-react-start@0.11.0':
+    resolution: {integrity: sha512-m+0kfFSQH/nd7OuRjkZ8hZcEO16mcIgvstbC/gl5LvQN+1p/5GFfGvF6ME1u0uv2mlJRD1C4ybfjpMUKlonZYg==}
+    engines: {node: '>=22.11.0'}
+    peerDependencies:
+      '@tanstack/react-router': '>=1.0.0'
+      '@tanstack/react-start': '>=1.168.25'
+      '@workos-inc/node': ^10.7.0
+      react: ^18.0 || ^19.0
+      react-dom: ^18.0 || ^19.0
+
   accepts@2.0.0:
     resolution: {integrity: sha512-5cvg6CtKwfgdmVqY1WIiXKc3Q1bkRqGLi+2W/6ao+6Y7gu/RCwRuAhGEzh5B4KlszSuTLgZYuqFqo5bImjNKng==}
     engines: {node: '>= 0.6'}
@@ -2058,6 +2081,9 @@ packages:
   ipaddr.js@1.9.1:
     resolution: {integrity: sha512-0KI/607xoxSToH7GjN1FfSbLoU0+btTicjsQSWQlh/hZykN8KpmMf7uYwPW3R+akZ6R/w18ZlXSHBYXiYUPO3g==}
     engines: {node: '>= 0.10'}
+
+  iron-webcrypto@2.0.0:
+    resolution: {integrity: sha512-rtffZKDUHciZElM8mjFCufBC7nVhCxHYyWHESqs89OioEDz4parOofd8/uhrejh/INhQFfYQfByS22LlezR9sQ==}
 
   is-arrayish@0.2.1:
     resolution: {integrity: sha512-zz06S8t0ozoDXMG+ube26zeCTNXcKIPJZJi8hBrF4idCLms4CG9QtK7qBl1boi5ODzFpjswb5JPmHCbMpjaYzg==}
@@ -2892,6 +2918,10 @@ packages:
     resolution: {integrity: sha512-aulFJcD6YK8V1G7iRB5tigAP4TsHBZZrOV8pjV++zdUwmeV8uzbY7yn6h9MswN62adStNZFuCIx4haBnRuMDaw==}
     engines: {node: '>=18'}
 
+  supports-color@10.2.2:
+    resolution: {integrity: sha512-SS+jx45GF1QjgEXQx4NJZV9ImqmO2NPz5FNsIHrsDjh2YsHnawpan7SNQ1o8NuhrbHZy9AZhIoCUiCeaW/C80g==}
+    engines: {node: '>=18'}
+
   symbol-tree@3.2.4:
     resolution: {integrity: sha512-9QNk5KwDF+Bvz+PyObkmSYjI5ksVUYtjW7AU22r2NKcfLJcXp96hkDWU3+XndOsUb+AQ9QhfzfCT2O+CNWT5Tw==}
 
@@ -2978,6 +3008,10 @@ packages:
   ufo@1.6.4:
     resolution: {integrity: sha512-JFNbkD1Svwe0KvGi8GOeLcP4kAWQ609twvCdcHxq1oSL8svv39ZuSvajcD8B+5D0eL4+s1Is2D/O6KN3qcTeRA==}
 
+  uint8array-extras@1.5.0:
+    resolution: {integrity: sha512-rvKSBiC5zqCCiDZ9kAOszZcDvdAHwwIKJG33Ykj43OKcWsnmcBRL09YTU4nOeHZ8Y2a7l1MgTd08SBe9A8Qj6A==}
+    engines: {node: '>=18'}
+
   undici-types@6.21.0:
     resolution: {integrity: sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ==}
 
@@ -3043,6 +3077,14 @@ packages:
 
   util-deprecate@1.0.2:
     resolution: {integrity: sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw==}
+
+  valibot@1.4.2:
+    resolution: {integrity: sha512-gjdCvJ6d3RyHAneqxMYMW9QMCwYMb3jpOO0IyHZV1bnRHFBHrX3VkIILt5XYR0WhwHiH7Mty8ovuPZ/O3gamrg==}
+    peerDependencies:
+      typescript: '>=5'
+    peerDependenciesMeta:
+      typescript:
+        optional: true
 
   validate-npm-package-name@7.0.2:
     resolution: {integrity: sha512-hVDIBwsRruT73PbK7uP5ebUt+ezEtCmzZz3F59BSr2F6OVFnJ/6h8liuvdLrQ88Xmnk6/+xGGuq+pG9WwTuy3A==}
@@ -3281,7 +3323,7 @@ snapshots:
       '@babel/types': 7.29.8
       '@jridgewell/remapping': 2.3.5
       convert-source-map: 2.0.0
-      debug: 4.4.3
+      debug: 4.4.3(supports-color@10.2.2)
       gensync: 1.0.0-beta.2
       json5: 2.2.3
       semver: 6.3.1
@@ -3439,7 +3481,7 @@ snapshots:
       '@babel/parser': 7.29.8
       '@babel/template': 7.29.7
       '@babel/types': 7.29.8
-      debug: 4.4.3
+      debug: 4.4.3(supports-color@10.2.2)
     transitivePeerDependencies:
       - supports-color
 
@@ -4424,6 +4466,28 @@ snapshots:
       convert-source-map: 2.0.0
       tinyrainbow: 3.1.1
 
+  '@workos-inc/node@10.13.0': {}
+
+  '@workos/authkit-session@0.7.1(@workos-inc/node@10.13.0)(typescript@6.0.3)':
+    dependencies:
+      '@workos-inc/node': 10.13.0
+      iron-webcrypto: 2.0.0
+      jose: 6.2.12
+      valibot: 1.4.2(typescript@6.0.3)
+    transitivePeerDependencies:
+      - typescript
+
+  '@workos/authkit-tanstack-react-start@0.11.0(@tanstack/react-router@1.170.32(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(@tanstack/react-start@1.168.49(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(rolldown@1.2.7)(vite@8.2.2(@types/node@22.20.1)(jiti@2.7.0)))(@workos-inc/node@10.13.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@6.0.3)':
+    dependencies:
+      '@tanstack/react-router': 1.170.32(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@tanstack/react-start': 1.168.49(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(rolldown@1.2.7)(vite@8.2.2(@types/node@22.20.1)(jiti@2.7.0))
+      '@workos-inc/node': 10.13.0
+      '@workos/authkit-session': 0.7.1(@workos-inc/node@10.13.0)(typescript@6.0.3)
+      react: 19.2.8
+      react-dom: 19.2.8(react@19.2.8)
+    transitivePeerDependencies:
+      - typescript
+
   accepts@2.0.0:
     dependencies:
       mime-types: 3.0.2
@@ -4491,7 +4555,7 @@ snapshots:
     dependencies:
       bytes: 3.1.2
       content-type: 2.1.0
-      debug: 4.4.3
+      debug: 4.4.3(supports-color@10.2.2)
       http-errors: 2.0.1
       iconv-lite: 0.7.3
       on-finished: 2.4.1
@@ -4641,9 +4705,11 @@ snapshots:
     dependencies:
       mimic-fn: 3.1.0
 
-  debug@4.4.3:
+  debug@4.4.3(supports-color@10.2.2):
     dependencies:
       ms: 2.1.3
+    optionalDependencies:
+      supports-color: 10.2.2
 
   decimal.js@10.6.0: {}
 
@@ -4769,7 +4835,7 @@ snapshots:
 
   express-rate-limit@8.7.0(express@5.2.1):
     dependencies:
-      debug: 4.4.3
+      debug: 4.4.3(supports-color@10.2.2)
       express: 5.2.1
       ip-address: 10.7.0
     transitivePeerDependencies:
@@ -4783,7 +4849,7 @@ snapshots:
       content-type: 1.0.5
       cookie: 0.7.2
       cookie-signature: 1.2.2
-      debug: 4.4.3
+      debug: 4.4.3(supports-color@10.2.2)
       depd: 2.0.0
       encodeurl: 2.0.0
       escape-html: 1.0.3
@@ -4842,7 +4908,7 @@ snapshots:
 
   finalhandler@2.1.1:
     dependencies:
-      debug: 4.4.3
+      debug: 4.4.3(supports-color@10.2.2)
       encodeurl: 2.0.0
       escape-html: 1.0.3
       on-finished: 2.4.1
@@ -4942,17 +5008,17 @@ snapshots:
       statuses: 2.0.2
       toidentifier: 1.0.1
 
-  http-proxy-agent@7.0.2:
+  http-proxy-agent@7.0.2(supports-color@10.2.2):
     dependencies:
       agent-base: 7.1.4
-      debug: 4.4.3
+      debug: 4.4.3(supports-color@10.2.2)
     transitivePeerDependencies:
       - supports-color
 
-  https-proxy-agent@7.0.6:
+  https-proxy-agent@7.0.6(supports-color@10.2.2):
     dependencies:
       agent-base: 7.1.4
-      debug: 4.4.3
+      debug: 4.4.3(supports-color@10.2.2)
     transitivePeerDependencies:
       - supports-color
 
@@ -4976,6 +5042,10 @@ snapshots:
   ip-address@10.7.0: {}
 
   ipaddr.js@1.9.1: {}
+
+  iron-webcrypto@2.0.0:
+    dependencies:
+      uint8array-extras: 1.5.0
 
   is-arrayish@0.2.1: {}
 
@@ -5043,7 +5113,7 @@ snapshots:
     dependencies:
       argparse: 2.0.1
 
-  jsdom@28.1.0:
+  jsdom@28.1.0(supports-color@10.2.2):
     dependencies:
       '@acemir/cssom': 0.9.31
       '@asamuzakjp/dom-selector': 6.8.1
@@ -5053,8 +5123,8 @@ snapshots:
       data-urls: 7.0.0
       decimal.js: 10.6.0
       html-encoding-sniffer: 6.0.0
-      http-proxy-agent: 7.0.2
-      https-proxy-agent: 7.0.6
+      http-proxy-agent: 7.0.2(supports-color@10.2.2)
+      https-proxy-agent: 7.0.6(supports-color@10.2.2)
       is-potential-custom-element-name: 1.0.1
       parse5: 8.0.1
       saxes: 6.0.0
@@ -5567,7 +5637,7 @@ snapshots:
 
   router@2.2.0:
     dependencies:
-      debug: 4.4.3
+      debug: 4.4.3(supports-color@10.2.2)
       depd: 2.0.0
       is-promise: 4.0.0
       parseurl: 1.3.3
@@ -5595,7 +5665,7 @@ snapshots:
 
   send@1.2.1:
     dependencies:
-      debug: 4.4.3
+      debug: 4.4.3(supports-color@10.2.2)
       encodeurl: 2.0.0
       escape-html: 1.0.3
       etag: 1.8.1
@@ -5772,6 +5842,9 @@ snapshots:
 
   strip-final-newline@4.0.0: {}
 
+  supports-color@10.2.2:
+    optional: true
+
   symbol-tree@3.2.4: {}
 
   systeminformation@5.33.8: {}
@@ -5840,6 +5913,8 @@ snapshots:
 
   ufo@1.6.4: {}
 
+  uint8array-extras@1.5.0: {}
+
   undici-types@6.21.0: {}
 
   undici@7.29.1: {}
@@ -5871,6 +5946,10 @@ snapshots:
 
   util-deprecate@1.0.2: {}
 
+  valibot@1.4.2(typescript@6.0.3):
+    optionalDependencies:
+      typescript: 6.0.3
+
   validate-npm-package-name@7.0.2: {}
 
   vary@1.1.2: {}
@@ -5891,7 +5970,7 @@ snapshots:
     optionalDependencies:
       vite: 8.2.2(@types/node@22.20.1)(jiti@2.7.0)
 
-  vitest@4.1.11(@types/node@22.20.1)(jsdom@28.1.0)(vite@8.2.2(@types/node@22.20.1)(jiti@2.7.0)):
+  vitest@4.1.11(@types/node@22.20.1)(jsdom@28.1.0(supports-color@10.2.2))(vite@8.2.2(@types/node@22.20.1)(jiti@2.7.0)):
     dependencies:
       '@vitest/expect': 4.1.11
       '@vitest/mocker': 4.1.11(vite@8.2.2(@types/node@22.20.1)(jiti@2.7.0))
@@ -5915,7 +5994,7 @@ snapshots:
       why-is-node-running: 2.3.0
     optionalDependencies:
       '@types/node': 22.20.1
-      jsdom: 28.1.0
+      jsdom: 28.1.0(supports-color@10.2.2)
     transitivePeerDependencies:
       - msw
 

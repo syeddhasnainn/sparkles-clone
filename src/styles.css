@@ -3,6 +3,7 @@
 @import "shadcn/tailwind.css";
 @import "./dashboard.css";
 @import "./settings.css";
+@import "./auth.css";
 
 @custom-variant dark (&:is(.dark *));
 

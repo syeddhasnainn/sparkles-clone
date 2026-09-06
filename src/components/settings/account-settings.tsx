@@ -1,3 +1,5 @@
+import { useAccount } from "@/hooks/use-account";
+import { SignOutButton } from "@/components/auth/sign-out-button";
 import { Link } from "@tanstack/react-router";
 import { AccountAvatar } from "@/components/dashboard/account-avatar";
 import { SettingsHeading } from "./settings-heading";
@@ -7,14 +9,16 @@ import { CloudBrowserSettings } from "./cloud-browser-settings";
 import { PrivacyDialog } from "./privacy-dialog";
 
 function ProfileSettings() {
+  const user = useAccount();
   return (
-    <SettingsSection title="Profile" description="No account is connected yet.">
+    <SettingsSection title="Profile" description="Your profile is synced from WorkOS.">
       <div className="profile-panel">
         <AccountAvatar size="large" />
         <div>
-          <p className="profile-name">Account</p>
-          <p className="profile-email">—</p>
+          <p className="profile-name">{user.name}</p>
+          <p className="profile-email">{user.email}</p>
         </div>
+        <SignOutButton />
       </div>
     </SettingsSection>
   );
