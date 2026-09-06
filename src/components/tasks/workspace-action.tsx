@@ -1,3 +1,5 @@
+import PlayIcon from "@hugeicons/core-free-icons/PlayIcon";
+import { AppIcon } from "../ui/app-icon";
 import type { Workspace } from "../../../bridge/contracts";
 
 interface WorkspaceActionProps {
@@ -8,7 +10,13 @@ interface WorkspaceActionProps {
 export function WorkspaceAction({ workspace, onStop, onResume }: WorkspaceActionProps) {
   if (workspace && ["stopped", "failed"].includes(workspace.status)) {
     return (
-      <button type="button" disabled={!workspace.canResume} onClick={() => void onResume()}>
+      <button
+        className="workspace-resume-button"
+        type="button"
+        disabled={!workspace.canResume}
+        onClick={() => void onResume()}
+      >
+        <AppIcon icon={PlayIcon} size={14} />
         Resume workspace
       </button>
     );

@@ -10,26 +10,19 @@ export function TaskSetup({
   if (
     !workspace ||
     (started && !workspace.restoring) ||
-    ["stopped", "failed"].includes(workspace.status)
+    ["stopped", "failed", "stopping"].includes(workspace.status)
   )
     return null;
   const stage = ["sandbox", "checkout", "agent", "task"].indexOf(workspace.phase || "sandbox");
+  const steps = [
+    "Preparing sandbox",
+    workspace.restoring ? "Restoring saved files" : "Checking repository",
+    "Starting OpenCode",
+    workspace.restoring ? "Restoring conversation" : "Starting task",
+  ];
   return (
-    <ol className="task-setup" aria-label="Task setup">
-      {[
-        "Preparing sandbox",
-        workspace.restoring ? "Restoring saved files" : "Checking repository",
-        "Starting OpenCode",
-        workspace.restoring ? "Restoring conversation" : "Starting task",
-      ].map((label, index) => (
-        <li
-          key={label}
-          data-state={index < stage ? "complete" : index === stage ? "active" : "pending"}
-        >
-          <span aria-hidden="true">{index < stage ? "✓" : index + 1}</span>
-          {label}
-        </li>
-      ))}
-    </ol>
+    <p className="task-setup-current" role="status">
+      {steps[Math.max(0, stage)]}…
+    </p>
   );
 }

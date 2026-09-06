@@ -16,6 +16,10 @@ export function TaskPage({ taskId }: { taskId: string }) {
   const { data, error, stop, resume } = useWorkspaces();
   const workspace = data?.workspaces.find((item) => item.id === taskId);
   const agent = useTaskAgent(taskId, workspace?.status === "ready");
+  const title = workspace?.prompt || "Loading task…";
+  const titleCharacters = Array.from(title);
+  const headerTitle =
+    titleCharacters.length > 60 ? titleCharacters.slice(0, 59).join("").trimEnd() + "…" : title;
   return (
     <TaskWorkbench
       taskId={taskId}
@@ -26,14 +30,10 @@ export function TaskPage({ taskId }: { taskId: string }) {
         {headerElement &&
           createPortal(
             <div className="task-chat-header">
-              <h1 title={workspace?.prompt}>{workspace?.prompt || "Loading task…"}</h1>
-              <span
-                className="task-header-status"
-                role="status"
-                aria-label={statusLabel(workspace, agent.snapshot)}
-                title={statusLabel(workspace, agent.snapshot)}
-                data-ready={workspace?.status === "ready"}
-              />
+              <h1 title={title}>{headerTitle}</h1>
+              <span className="sr-only" role="status">
+                {statusLabel(workspace, agent.snapshot)}
+              </span>
               <WorkspaceAction
                 workspace={workspace}
                 onStop={() => stop(taskId)}
@@ -55,22 +55,26 @@ export function TaskPage({ taskId }: { taskId: string }) {
           </div>
         </div>
         <div className="task-composer-dock">
-          <div className="composer-top-strip">
-            <ComposerAvailability
+          <div className="task-composer-inner">
+            {workspace?.status !== "ready" && (
+              <div className="composer-top-strip">
+                <ComposerAvailability
+                  workspace={workspace}
+                  onStop={() => stop(taskId)}
+                  onResume={() => resume(taskId)}
+                />
+                <TaskSetup
+                  workspace={workspace}
+                  started={agent.events.some((event) => event.type === "user")}
+                />
+              </div>
+            )}
+            <Followup
+              agent={agent}
               workspace={workspace}
-              onStop={() => stop(taskId)}
-              onResume={() => resume(taskId)}
-            />
-            <TaskSetup
-              workspace={workspace}
-              started={agent.events.some((event) => event.type === "user")}
+              enabled={workspace?.status === "ready" && workspace.phase === "task"}
             />
           </div>
-          <Followup
-            agent={agent}
-            workspace={workspace}
-            enabled={workspace?.status === "ready" && workspace.phase === "task"}
-          />
         </div>
       </section>
     </TaskWorkbench>
@@ -101,7 +105,7 @@ function ComposerAvailability({
   onStop: () => Promise<void>;
   onResume: () => Promise<void>;
 }) {
-  if (workspace?.status === "ready") return null;
+  if (workspace?.status === "ready" || workspace?.status === "provisioning") return null;
   const stopped = workspace?.status === "stopped" || workspace?.status === "failed";
   let message = "You can draft a message while the workspace is getting ready.";
   if (stopped)

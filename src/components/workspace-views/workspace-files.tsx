@@ -1,4 +1,5 @@
-import { lazy, Suspense, useEffect, useState } from "react";
+import { WorkspaceChanges } from "./workspace-changes";
+import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import RefreshIcon from "@hugeicons/core-free-icons/RefreshIcon";
 import File01Icon from "@hugeicons/core-free-icons/File01Icon";
 import { AppIcon } from "../ui/app-icon";
@@ -18,6 +19,17 @@ export function WorkspaceFiles({ taskId }: { taskId: string }) {
   const [file, setFile] = useState<WorkspaceFile | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [revision, setRevision] = useState(0);
+  const [split, setSplit] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
+  const [loadedCounts, setLoadedCounts] = useState<Record<string, number>>({});
+  const reportAdditions = useCallback((key: string, count: number) => {
+    setLoadedCounts((previous) =>
+      previous[key] === count ? previous : { ...previous, [key]: count },
+    );
+  }, []);
+  const additions = files?.files.map(
+    (item) => item.additions ?? loadedCounts[`${base}:${item.path}`],
+  );
   useEffect(() => {
     let cancelled = false;
     let loading = false;
@@ -46,7 +58,7 @@ export function WorkspaceFiles({ taskId }: { taskId: string }) {
   const active = selected ?? files?.files[0]?.path ?? null;
   useEffect(() => {
     let cancelled = false;
-    if (!active) return;
+    if (!active || scope !== "all") return;
     void requestView(taskId, { kind: "file", path: active, base })
       .then((next) => {
         if (!cancelled && next.kind === "file") setFile(next);
@@ -57,7 +69,7 @@ export function WorkspaceFiles({ taskId }: { taskId: string }) {
     return () => {
       cancelled = true;
     };
-  }, [taskId, active, base, files, revision]);
+  }, [taskId, active, base, files, revision, scope]);
   return (
     <div className="workspace-files">
       <div className="workspace-panel-toolbar">
@@ -69,7 +81,7 @@ export function WorkspaceFiles({ taskId }: { taskId: string }) {
               setSelected(null);
             }}
           >
-            Changed
+            Changes
           </button>
           <button
             aria-pressed={scope === "all"}
@@ -78,7 +90,7 @@ export function WorkspaceFiles({ taskId }: { taskId: string }) {
               setSelected(null);
             }}
           >
-            All
+            All files
           </button>
         </div>
         <select
@@ -86,7 +98,7 @@ export function WorkspaceFiles({ taskId }: { taskId: string }) {
           value={base}
           onChange={(event) => setBase(event.target.value === "head" ? "head" : "task")}
         >
-          <option value="task">Since task started</option>
+          <option value="task">All changes</option>
           <option value="head">Uncommitted</option>
         </select>
         <button
@@ -102,48 +114,91 @@ export function WorkspaceFiles({ taskId }: { taskId: string }) {
           {error}
         </p>
       )}
-      <div className="workspace-file-layout">
-        <nav className="workspace-file-list" aria-label="Repository files">
-          {files?.files.map((item) => (
-            <button
-              key={item.path}
-              aria-current={active === item.path ? "true" : undefined}
-              title={item.path}
-              onClick={() => setSelected(item.path)}
-            >
-              <AppIcon icon={File01Icon} size={14} />
-              <span>{item.path}</span>
-              <small className={`file-status file-status-${item.status}`} aria-label={item.status}>
-                {item.status === "added"
-                  ? "+"
-                  : item.status === "deleted"
-                    ? "−"
-                    : item.status === "modified"
-                      ? "M"
-                      : ""}
-              </small>
-            </button>
-          ))}
-          {!files && !error && <p>Loading files…</p>}
-          {files?.files.length === 0 && (
-            <p>{scope === "changed" ? "No changes yet." : "No files found."}</p>
-          )}
-          {files?.truncated && <p>Showing the first 2,000 files.</p>}
-        </nav>
-        <div className="workspace-file-content">
-          {active && file?.path === active ? (
-            <Suspense fallback={<p className="workspace-file-placeholder">Loading viewer…</p>}>
-              <FileViewer file={file} />
-            </Suspense>
-          ) : (
-            <div className="workspace-view-empty">
-              <AppIcon icon={File01Icon} size={28} />
-              <h3>{active ? "Loading file…" : "Repository files"}</h3>
-              <p>{active ? active : "Changes will appear as your task progresses."}</p>
+      {scope === "changed" ? (
+        <>
+          <div className="workspace-changes-summary">
+            <span>
+              {files?.files.length ?? 0} {files?.files.length === 1 ? "file" : "files"}
+            </span>
+            <span className="changes-additions" title="? means some line counts are unavailable">
+              +
+              {additions?.some((count) => count === undefined)
+                ? "?"
+                : (additions?.reduce<number>((sum, count) => sum + (count ?? 0), 0) ?? 0)}
+            </span>
+            <span className="changes-deletions">
+              −
+              {files?.files.some((item) => item.deletions === null)
+                ? "?"
+                : (files?.files.reduce((sum, item) => sum + (item.deletions ?? 0), 0) ?? 0)}
+            </span>
+            <div className="workspace-segments">
+              <button aria-pressed={split} onClick={() => setSplit((value) => !value)}>
+                Split
+              </button>
+              <button onClick={() => setCollapsed((value) => !value)}>
+                {collapsed ? "Expand all" : "Collapse all"}
+              </button>
             </div>
+          </div>
+          {files ? (
+            <WorkspaceChanges
+              taskId={taskId}
+              files={files}
+              base={base}
+              split={split}
+              collapsed={collapsed}
+              reportAdditions={reportAdditions}
+            />
+          ) : (
+            <p className="workspace-file-placeholder">Loading changes…</p>
           )}
+        </>
+      ) : (
+        <div className="workspace-file-layout">
+          <nav className="workspace-file-list" aria-label="Repository files">
+            {files?.files.map((item) => (
+              <button
+                key={item.path}
+                aria-current={active === item.path ? "true" : undefined}
+                title={item.path}
+                onClick={() => setSelected(item.path)}
+              >
+                <AppIcon icon={File01Icon} size={14} />
+                <span>{item.path}</span>
+                <small
+                  className={`file-status file-status-${item.status}`}
+                  aria-label={item.status}
+                >
+                  {item.status === "added"
+                    ? "+"
+                    : item.status === "deleted"
+                      ? "−"
+                      : item.status === "modified"
+                        ? "M"
+                        : ""}
+                </small>
+              </button>
+            ))}
+            {!files && !error && <p>Loading files…</p>}
+            {files?.files.length === 0 && <p>No files found.</p>}
+            {files?.truncated && <p>Showing the first 2,000 files.</p>}
+          </nav>
+          <div className="workspace-file-content">
+            {active && file?.path === active ? (
+              <Suspense fallback={<p className="workspace-file-placeholder">Loading viewer…</p>}>
+                <FileViewer file={file} />
+              </Suspense>
+            ) : (
+              <div className="workspace-view-empty">
+                <AppIcon icon={File01Icon} size={28} />
+                <h3>{active ? "Loading file…" : "Repository files"}</h3>
+                <p>{active ? active : "Changes will appear as your task progresses."}</p>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

@@ -32,7 +32,7 @@ const persist = () => {
   renameSync(statePath + '.tmp', statePath);
 };
 const emit = (type, data) => {
-  const event = { id: ++sequence, type, data };
+  const event = { id: ++sequence, type, data, timestamp: Date.now() };
   appendFileSync(journalPath, JSON.stringify(event) + '\n', { mode: 0o600, flush: true });
   events.push(event);
   persist();

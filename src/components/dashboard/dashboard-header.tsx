@@ -1,8 +1,6 @@
 import { createContext } from "react";
 import type { RefObject } from "react";
-import { Link } from "@tanstack/react-router";
 import { DashboardIcon } from "./dashboard-icon";
-import { AccountAvatar } from "./account-avatar";
 
 export const TaskHeaderContext = createContext<HTMLDivElement | null>(null);
 
@@ -36,9 +34,6 @@ export function DashboardHeader({
       <div className="dashboard-title-slot" ref={contentRef}>
         {!settings && <span className="dashboard-default-title">New chat</span>}
       </div>
-      <Link className="account-link" to="/app/settings/account" aria-label="Account">
-        <AccountAvatar />
-      </Link>
     </header>
   );
 }
