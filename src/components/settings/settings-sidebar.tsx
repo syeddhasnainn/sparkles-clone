@@ -1,5 +1,6 @@
+import { AppIcon } from "../ui/app-icon";
 import { Link } from "@tanstack/react-router";
-import { ArrowLeft } from "lucide-react";
+import ArrowLeft from "@hugeicons/core-free-icons/ArrowLeft01Icon";
 import { DashboardIcon } from "@/components/dashboard/dashboard-icon";
 import { WorkspaceSwitcher } from "@/components/dashboard/workspace-switcher";
 
@@ -64,7 +65,7 @@ export function SettingsSidebar({
       </nav>
       <div className="sidebar-footer">
         <Link to="/app" className="nav-item" onClick={onNavigate}>
-          <ArrowLeft size={16} />
+          <AppIcon icon={ArrowLeft} size={16} />
           Back to dashboard
         </Link>
       </div>

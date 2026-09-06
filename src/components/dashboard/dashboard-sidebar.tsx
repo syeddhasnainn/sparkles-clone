@@ -1,7 +1,11 @@
+import { AppIcon } from "../ui/app-icon";
 import { Link } from "@tanstack/react-router";
-import { ChevronDown, Eye, FolderPlus, Plus } from "lucide-react";
+import ChevronDown from "@hugeicons/core-free-icons/ArrowDown01Icon";
+import Eye from "@hugeicons/core-free-icons/ViewIcon";
+import FolderPlus from "@hugeicons/core-free-icons/FolderAddIcon";
+import Plus from "@hugeicons/core-free-icons/Add01Icon";
 import { useWorkspaces } from "@/hooks/use-workspaces";
-import { GitBranch } from "lucide-react";
+import WorkflowCircle04Icon from "@hugeicons/core-free-icons/WorkflowCircle04Icon";
 import { DashboardIcon } from "./dashboard-icon";
 
 export function DashboardSidebar({
@@ -32,15 +36,15 @@ export function DashboardSidebar({
       <div className="sidebar-actions">
         <div className="new-chat-group">
           <Link to="/app" onClick={onNewChat} className="new-chat-button">
-            <Plus size={16} />
+            <AppIcon icon={Plus} size={14} />
             New chat
           </Link>
           <button className="new-chat-chevron" aria-label="Start chat in another project" disabled>
-            <ChevronDown size={14} />
+            <AppIcon icon={ChevronDown} size={14} />
           </button>
         </div>
         <button className="folder-button" aria-label="New folder" disabled>
-          <FolderPlus size={16} />
+          <AppIcon icon={FolderPlus} size={14} />
         </button>
       </div>
       <div className="sidebar-content">
@@ -51,8 +55,11 @@ export function DashboardSidebar({
             ["history", "History"],
           ].map(([icon, label]) => (
             <button key={icon} className="nav-item" disabled>
-              <DashboardIcon name={icon} />
+              <DashboardIcon name={icon} size={14} />
               {label}
+              {(icon === "backlog" || icon === "automations") && (
+                <span className="sidebar-coming-soon">Coming soon</span>
+              )}
             </button>
           ))}
         </nav>
@@ -70,8 +77,9 @@ export function DashboardSidebar({
                   onClick={onNavigate}
                   title={task.prompt}
                 >
-                  <GitBranch
-                    size={16}
+                  <AppIcon
+                    icon={WorkflowCircle04Icon}
+                    size={14}
                     className="conversation-repository-icon"
                     aria-hidden="true"
                   />
@@ -101,14 +109,14 @@ export function DashboardSidebar({
         <section className="team-section">
           <h2 className="section-label">
             Team
-            <Eye size={14} />
+            <AppIcon icon={Eye} size={14} />
           </h2>
           <div className="empty-folder">Drop a chat here to share it</div>
         </section>
       </div>
       <div className="sidebar-footer">
         <Link to="/app/settings/account" className="nav-item" onClick={onNavigate}>
-          <DashboardIcon name="settings" />
+          <DashboardIcon name="settings" size={14} />
           Settings
         </Link>
       </div>

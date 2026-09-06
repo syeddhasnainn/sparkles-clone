@@ -1,6 +1,9 @@
+import { AppIcon } from "../ui/app-icon";
 import { useCallback, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { Check, Lock, Search } from "lucide-react";
+import Check from "@hugeicons/core-free-icons/Tick02Icon";
+import Lock from "@hugeicons/core-free-icons/LockKeyIcon";
+import Search from "@hugeicons/core-free-icons/Search01Icon";
 import { Button } from "@/components/ui/button";
 import { usePaginatedItems } from "@/hooks/use-paginated-items";
 import { listGitHubRepositories, type GitHubRepository } from "@/lib/github/functions";
@@ -29,8 +32,10 @@ function RepositoryOption({
           {repo.archived ? " · Archived" : ""}
         </span>
       </span>
-      {repo.private && <Lock className="size-3 shrink-0" aria-label="Private repository" />}
-      {selected && <Check className="size-3.5 shrink-0" />}
+      {repo.private && (
+        <AppIcon icon={Lock} className="size-3 shrink-0" aria-label="Private repository" />
+      )}
+      {selected && <AppIcon icon={Check} className="size-3.5 shrink-0" />}
     </button>
   );
 }
@@ -74,7 +79,7 @@ export function InstallationRepositories({
   return (
     <>
       <label className="mx-3 mt-2 flex items-center gap-2 rounded-md border border-input px-2 text-muted-foreground">
-        <Search className="size-3.5" />
+        <AppIcon icon={Search} className="size-3.5" />
         <input
           value={search}
           onChange={(event) => setSearch(event.target.value)}

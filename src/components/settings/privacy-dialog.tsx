@@ -1,7 +1,8 @@
+import { AppIcon } from "../ui/app-icon";
 import { useId, useState } from "react";
 import { Dialog } from "@base-ui/react/dialog";
 import { Switch } from "@base-ui/react/switch";
-import { X } from "lucide-react";
+import X from "@hugeicons/core-free-icons/Cancel01Icon";
 import { usePreferences } from "./preferences";
 
 function PrivacyOption({
@@ -85,7 +86,7 @@ export function PrivacyDialog() {
               Choose which optional data Sparkles can collect. Essential storage is always on.
             </Dialog.Description>
             <Dialog.Close className="settings-dialog-close" aria-label="Close">
-              <X size={16} />
+              <AppIcon icon={X} size={16} />
             </Dialog.Close>
             <div className="privacy-options">
               <PrivacyOption

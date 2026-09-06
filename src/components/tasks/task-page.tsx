@@ -43,13 +43,22 @@ export function TaskPage({ taskId }: { taskId: string }) {
                 " UTC"}
             </p>
           )}
-          <Conversation events={agent.events} />
+          <Conversation
+            events={agent.events}
+            streaming={workspace?.status === "ready" && agent.snapshot?.status === "running"}
+          />
           {workspace?.status === "ready" && <Permissions agent={agent} />}
         </div>
       </div>
       <div className="task-composer-dock">
+        <ComposerAvailability
+          workspace={workspace}
+          onStop={() => stop(taskId)}
+          onResume={() => resume(taskId)}
+        />
         <Followup
           agent={agent}
+          workspace={workspace}
           enabled={workspace?.status === "ready" && workspace.phase === "task"}
         />
       </div>
@@ -70,4 +79,30 @@ function statusLabel(workspace: Workspace | undefined, snapshot: AgentSnapshot |
   if (snapshot?.status === "checkpointing") return "Saving workspace…";
   if (snapshot?.status === "failed") return "OpenCode stopped unexpectedly";
   return "Starting OpenCode…";
+}
+
+function ComposerAvailability({
+  workspace,
+  onStop,
+  onResume,
+}: {
+  workspace?: Workspace;
+  onStop: () => Promise<void>;
+  onResume: () => Promise<void>;
+}) {
+  if (workspace?.status === "ready") return null;
+  const stopped = workspace?.status === "stopped" || workspace?.status === "failed";
+  let message = "You can draft a message while the workspace is getting ready.";
+  if (stopped)
+    message = workspace.canResume
+      ? "You can draft a message. Resume the workspace to send it."
+      : "You can draft a message, but this workspace cannot be resumed.";
+  if (workspace?.status === "stopping")
+    message = "Saving the workspace. You can keep drafting your message.";
+  return (
+    <div className="composer-availability">
+      <span>{message}</span>
+      {stopped && <WorkspaceAction workspace={workspace} onStop={onStop} onResume={onResume} />}
+    </div>
+  );
 }

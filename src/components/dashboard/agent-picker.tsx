@@ -1,5 +1,6 @@
+import { AppIcon } from "../ui/app-icon";
 import { useState } from "react";
-import { ChevronDown } from "lucide-react";
+import ChevronDown from "@hugeicons/core-free-icons/ArrowDown01Icon";
 import { Picker } from "./picker";
 
 const models = [
@@ -60,7 +61,7 @@ export function AgentPicker() {
           <span>{model}</span>
           <span className="muted">·</span>
           <span className="muted harness-label">{harness}</span>
-          <ChevronDown size={12} />
+          <AppIcon icon={ChevronDown} size={12} />
         </>
       }
     >

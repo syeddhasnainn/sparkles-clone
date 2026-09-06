@@ -1,7 +1,8 @@
+import { AppIcon } from "../ui/app-icon";
 import { useState } from "react";
 import { Popover } from "@base-ui/react/popover";
 import { Link } from "@tanstack/react-router";
-import { ChevronDown } from "lucide-react";
+import ChevronDown from "@hugeicons/core-free-icons/ArrowDown01Icon";
 import { useGitHubConnection } from "@/hooks/use-github-connection";
 import type { GitHubRepository } from "@/lib/github/functions";
 import { DashboardIcon } from "./dashboard-icon";
@@ -63,7 +64,7 @@ export function RepositoryPicker({
       >
         <DashboardIcon name="github" size={14} />
         <span className="max-w-48 truncate">{selected?.name ?? "Choose repository"}</span>
-        <ChevronDown className="size-3" />
+        <AppIcon icon={ChevronDown} className="size-3" />
       </Popover.Trigger>
       <Popover.Portal>
         <Popover.Positioner side="top" align="start" sideOffset={8} className="z-50">

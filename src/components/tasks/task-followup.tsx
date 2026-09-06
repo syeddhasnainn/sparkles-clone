@@ -1,10 +1,21 @@
 import { useRef, useState } from "react";
+import { ComposerPanel } from "../composer/composer-panel";
+import type { Workspace } from "../../../bridge/contracts";
 import type { Agent } from "./task-types";
 
-export function Followup({ agent, enabled }: { agent: Agent; enabled: boolean }) {
+export function Followup({
+  agent,
+  enabled,
+  workspace,
+}: {
+  agent: Agent;
+  enabled: boolean;
+  workspace?: Workspace;
+}) {
   const [prompt, setPrompt] = useState("");
   const submission = useRef<{ requestId: string; prompt: string } | null>(null);
   const submit = async () => {
+    if (!enabled || agent.sending || !prompt.trim() || agent.snapshot?.status !== "idle") return;
     if (submission.current?.prompt !== prompt)
       submission.current = { requestId: crypto.randomUUID(), prompt };
     if (await agent.send({ kind: "prompt", ...submission.current })) {
@@ -13,40 +24,20 @@ export function Followup({ agent, enabled }: { agent: Agent; enabled: boolean })
     }
   };
   return (
-    <form
-      className="task-followup"
-      onSubmit={(event) => {
-        event.preventDefault();
-        void submit();
-      }}
-    >
-      <textarea
-        aria-label="Follow-up prompt"
-        placeholder="Ask OpenCode to continue…"
-        value={prompt}
-        onChange={(event) => setPrompt(event.target.value)}
-        disabled={!enabled}
-      />
-      <div>
-        {agent.snapshot?.status === "running" ? (
-          <button
-            disabled={!enabled || agent.sending}
-            type="button"
-            onClick={() => void agent.send({ kind: "cancel" })}
-          >
-            Stop response
-          </button>
-        ) : (
-          <button
-            type="submit"
-            disabled={
-              !enabled || agent.sending || !prompt.trim() || agent.snapshot?.status !== "idle"
-            }
-          >
-            Send
-          </button>
-        )}
-      </div>
-    </form>
+    <ComposerPanel
+      value={prompt}
+      onChange={setPrompt}
+      onSubmit={() => void submit()}
+      label="Follow-up prompt"
+      sendLabel="Send"
+      sendDisabled={
+        !enabled || agent.sending || !prompt.trim() || agent.snapshot?.status !== "idle"
+      }
+      busy={agent.sending}
+      running={enabled && agent.snapshot?.status === "running"}
+      onStop={() => void agent.send({ kind: "cancel" })}
+      branch={workspace?.repository.defaultBranch}
+      repository={workspace?.repository.name.split("/").at(-1)}
+    />
   );
 }

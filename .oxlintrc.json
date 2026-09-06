@@ -37,6 +37,27 @@
     "anti-slop/no-unknown-returns": "error",
     "anti-slop/no-unknown-type-aliases": "error",
     "anti-slop/no-widen-then-assert": "error",
-    "anti-slop/require-safety-comment-for-type-assertion": "error"
+    "anti-slop/require-safety-comment-for-type-assertion": "error",
+    "no-restricted-imports": [
+      "error",
+      {
+        "paths": [
+          {
+            "name": "@hugeicons/core-free-icons",
+            "message": "Import individual Hugeicons modules, e.g. @hugeicons/core-free-icons/Add01Icon."
+          }
+        ],
+        "patterns": [
+          {
+            "group": [
+              "@hugeicons/core-free-icons/loader",
+              "@hugeicons/core-free-icons/index*",
+              "@hugeicons/core-free-icons/dist/*"
+            ],
+            "message": "Use public individual icon subpaths instead of loading the icon catalog."
+          }
+        ]
+      }
+    ]
   }
 }

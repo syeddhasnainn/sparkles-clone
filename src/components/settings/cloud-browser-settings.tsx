@@ -1,4 +1,5 @@
-import { Trash2 } from "lucide-react";
+import { AppIcon } from "../ui/app-icon";
+import Trash2 from "@hugeicons/core-free-icons/Delete02Icon";
 import { SettingsSection } from "./settings-section";
 
 export function CloudBrowserSettings() {
@@ -10,7 +11,7 @@ export function CloudBrowserSettings() {
       <div className="settings-action-panel">
         <p>No saved cloud-browser sessions.</p>
         <button className="settings-button" disabled>
-          <Trash2 size={16} />
+          <AppIcon icon={Trash2} size={16} />
           Clear saved sessions
         </button>
       </div>
