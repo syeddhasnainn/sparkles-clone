@@ -81,7 +81,7 @@ export class ModalProvider implements SandboxProvider {
       const image = this.client.images
         .fromRegistry("node:22-bookworm")
         .dockerfileCommands([
-          "RUN apt-get update && apt-get install -y --no-install-recommends python3 gh chromium xvfb x11vnc novnc websockify xfce4-session xfwm4 xfce4-panel xfdesktop4 thunar xfce4-terminal dbus-x11 xdotool imagemagick x11-utils x11-xserver-utils xterm fonts-liberation && rm -rf /var/lib/apt/lists/*",
+          "RUN apt-get update && apt-get install -y --no-install-recommends python3 gh ripgrep chromium xvfb x11vnc novnc websockify xfce4-session xfwm4 xfce4-panel xfdesktop4 thunar xfce4-terminal dbus-x11 xdotool imagemagick x11-utils x11-xserver-utils xterm fonts-liberation && rg --version && rm -rf /var/lib/apt/lists/*",
           "RUN npm install --global pnpm@12.0.0",
           "RUN npm install --global opencode-ai@1.18.29 @agentclientprotocol/codex-acp@1.10.0 @openai/codex@0.153.3",
           codexPolicyBuildCommand,
