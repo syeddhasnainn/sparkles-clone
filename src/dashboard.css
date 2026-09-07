@@ -50,6 +50,9 @@
   --muted-foreground: var(--sidebar-muted-foreground);
   --muted: var(--sidebar-hover);
   --accent: var(--sidebar-accent);
+  --conversation-green: #16803c;
+  --conversation-red: #c52c36;
+  --conversation-purple: #8250df;
   color: var(--sidebar-foreground);
   width: 256px;
   flex-shrink: 0;
@@ -57,6 +60,12 @@
   flex-direction: column;
   background: var(--sidebar);
   border-right: 0.5px solid var(--border);
+}
+
+.dark .dashboard-sidebar {
+  --conversation-green: #56d387;
+  --conversation-red: #ff7b86;
+  --conversation-purple: #bc8cff;
 }
 
 .sidebar-brand {
@@ -353,23 +362,23 @@
 }
 
 .conversation-additions {
-  color: light-dark(#16803c, #56d387);
+  color: var(--conversation-green);
 }
 
 .conversation-deletions {
-  color: light-dark(#c52c36, #ff7b86);
+  color: var(--conversation-red);
 }
 
 .dashboard-sidebar .conversation-row[data-pr-state="open"] .conversation-repository-icon {
-  color: light-dark(#16803c, #56d387);
+  color: var(--conversation-green);
 }
 
 .dashboard-sidebar .conversation-row[data-pr-state="merged"] .conversation-repository-icon {
-  color: light-dark(#8250df, #bc8cff);
+  color: var(--conversation-purple);
 }
 
 .dashboard-sidebar .conversation-row[data-pr-state="closed"] .conversation-repository-icon {
-  color: light-dark(#c52c36, #ff7b86);
+  color: var(--conversation-red);
 }
 
 .dashboard-sidebar .conversation-row[data-pr-state="draft"] .conversation-repository-icon {
