@@ -1,3 +1,4 @@
+import { githubInstructions } from "./github-credentials.ts";
 import { previewInstructions } from "./preview-instructions.ts";
 
 export const agentRunnerSource = String.raw`
@@ -34,7 +35,7 @@ let permissionModes;
 let changingMode = false;
 let previewFingerprint = previous.previewFingerprint;
 let checkingPreview = false;
-const previewContext = ${JSON.stringify(previewInstructions)};
+const previewContext = ${JSON.stringify(`${previewInstructions}\n\n${githubInstructions}`)};
 const mcpServers = [{ name: 'computer', command: '/usr/bin/python3', args: ['/opt/sparkles/computer-mcp.py'], env: [{ name: 'SPARKLES_STATE_DIR', value: stateDirectory }, { name: 'SPARKLES_WORKSPACE_DIR', value: workspaceDirectory }] }];
 const permissionModeIds = ['read-only', 'agent', 'agent-full-access'];
 const persist = () => {

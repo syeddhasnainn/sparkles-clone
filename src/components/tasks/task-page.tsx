@@ -20,6 +20,9 @@ export function TaskPage({
   const { data, error, resume } = useWorkspaces();
   const workspace = data?.workspaces.find((item) => item.id === taskId);
   const agent = useTaskAgent(taskId, workspace?.status === "ready", initialConversation);
+  const agentWorking =
+    workspace?.status === "ready" &&
+    (agent.sending || agent.awaitingPrompt || agent.snapshot?.status === "running");
   const previewRequest = useRef<string | null>(null);
   const previewSubmitting = useRef(false);
   const canStartPreview =
@@ -51,11 +54,12 @@ export function TaskPage({
       sandboxId={workspace?.sandboxId}
       ready={workspace?.status === "ready"}
       status={workspace?.status}
+      restoring={workspace?.restoring}
       canResume={Boolean(workspace?.canResume)}
       onStart={() => resume(taskId)}
       onStartPreview={startPreview}
       canStartPreview={canStartPreview}
-      agentWorking={agent.sending || agent.awaitingPrompt || agent.snapshot?.status === "running"}
+      agentWorking={agentWorking}
     >
       <section className="task-page">
         <span className="sr-only" role="status">
@@ -76,16 +80,18 @@ export function TaskPage({
               events={agent.events}
               initialPrompt={workspace?.prompt}
               preparationLabel={preparationLabel(workspace, agent.snapshot)}
-              streaming={
-                agent.awaitingPrompt ||
-                (workspace?.status === "ready" && agent.snapshot?.status === "running")
-              }
+              streaming={agentWorking}
             />
             {workspace?.status === "ready" && <Permissions agent={agent} />}
           </div>
         </div>
         <div className="task-composer-dock">
           <div className="task-composer-inner">
+            {workspace?.status === "failed" && (
+              <p className="workspace-error" role="alert">
+                {workspace.error || "Workspace startup failed. Resume the workspace to continue."}
+              </p>
+            )}
             {(workspace?.status !== "ready" || workspace.phase !== "task") && (
               <div className="composer-top-strip">
                 <TaskSetup

@@ -1,3 +1,8 @@
+import {
+  githubCredentialHelper,
+  githubCliWrapper,
+  type GitHubCredentials,
+} from "./github-credentials.ts";
 import { createAgentEnvironment } from "./agent-environment.ts";
 import { AlreadyExistsError, ModalClient, NotFoundError } from "modal";
 import { z } from "zod";
@@ -76,7 +81,7 @@ export class ModalProvider implements SandboxProvider {
       const image = this.client.images
         .fromRegistry("node:22-bookworm")
         .dockerfileCommands([
-          "RUN apt-get update && apt-get install -y --no-install-recommends python3 chromium xvfb x11vnc novnc websockify xfce4-session xfwm4 xfce4-panel xfdesktop4 thunar xfce4-terminal dbus-x11 xdotool imagemagick x11-utils x11-xserver-utils xterm fonts-liberation && rm -rf /var/lib/apt/lists/*",
+          "RUN apt-get update && apt-get install -y --no-install-recommends python3 gh chromium xvfb x11vnc novnc websockify xfce4-session xfwm4 xfce4-panel xfdesktop4 thunar xfce4-terminal dbus-x11 xdotool imagemagick x11-utils x11-xserver-utils xterm fonts-liberation && rm -rf /var/lib/apt/lists/*",
           "RUN npm install --global pnpm@12.0.0",
           "RUN npm install --global opencode-ai@1.18.29 @agentclientprotocol/codex-acp@1.10.0 @openai/codex@0.153.3",
           codexPolicyBuildCommand,
@@ -139,7 +144,7 @@ export class ModalProvider implements SandboxProvider {
         };
       }
       if (request.action === "start") {
-        await this.startRunner(sandbox, request.gateway);
+        await this.startRunner(sandbox, request.gateway, request.github);
         return { running: true, sandboxId: sandbox.sandboxId, commit: null };
       }
       if (request.action !== "create") {
@@ -170,7 +175,7 @@ export class ModalProvider implements SandboxProvider {
       const { commit } = z
         .object({ commit: z.string().regex(/^[a-f0-9]{40,64}$/) })
         .parse(JSON.parse(output));
-      await this.startRunner(sandbox, request.gateway);
+      await this.startRunner(sandbox, request.gateway, request.github);
       return { running: true, sandboxId: sandbox.sandboxId, commit };
     } finally {
       sandbox.detach();
@@ -179,8 +184,36 @@ export class ModalProvider implements SandboxProvider {
   private async startRunner(
     sandbox: import("modal").Sandbox,
     gateway?: { url: string; token: string; model: string },
+    github?: GitHubCredentials,
   ) {
     if (!gateway) throw new Error("Model gateway is not configured.");
+    if (github) {
+      const configure = await sandbox.exec([
+        "node",
+        "-e",
+        `
+        const fs = require('node:fs');
+        const { execFileSync } = require('node:child_process');
+        const config = JSON.parse(fs.readFileSync(0, 'utf8'));
+        fs.mkdirSync('/opt/sparkles', { recursive: true });
+        fs.writeFileSync('/opt/sparkles/github-credentials.json', JSON.stringify(config.github), { mode: 0o600 });
+        fs.chmodSync('/opt/sparkles/github-credentials.json', 0o600);
+        fs.writeFileSync('/opt/sparkles/git-credential-sparkles', config.helper, { mode: 0o755 });
+        fs.writeFileSync('/usr/local/bin/gh', config.wrapper, { mode: 0o755 });
+        for (const [key, value] of Object.entries({
+          'user.name': config.github.name,
+          'user.email': config.github.email,
+          'credential.https://github.com.useHttpPath': 'true',
+          'credential.https://github.com.helper': '/opt/sparkles/git-credential-sparkles',
+        })) execFileSync('git', ['config', '--global', '--replace-all', key, value]);
+      `,
+      ]);
+      await configure.stdin.writeText(
+        JSON.stringify({ github, helper: githubCredentialHelper, wrapper: githubCliWrapper }),
+      );
+      await configure.stdin.close();
+      if ((await configure.wait()) !== 0) throw new Error("Workspace GitHub configuration failed.");
+    }
     await ensureWorkspaceServices(sandbox);
     await sandbox.filesystem.writeText(computerMcpSource, "/opt/sparkles/computer-mcp.py");
     await sandbox.filesystem.writeText(agentRunnerSource, "/opt/sparkles/agent-runner.mjs");

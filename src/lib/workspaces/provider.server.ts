@@ -1,6 +1,9 @@
+import { workspaceGitHubCredentials } from "./github-credentials";
+import { createWorkspaceGitHubCredentials, revokeCheckoutToken } from "./github.server";
 import { issueModelGateway, revokeModelGateway } from "./model-gateway";
 import { requireChatGPTModel } from "../chatgpt/models";
 import { z } from "zod";
+import { requireBridgeCompatibility } from "../../../bridge/protocol";
 import { createChatGPTService } from "../chatgpt/service";
 import { createProjectEnvironmentStore } from "../projects/store";
 import {
@@ -37,6 +40,12 @@ export function containerProvider(
   shard: string,
   taskId: string,
 ): WorkspaceProvider {
+  const github = workspaceGitHubCredentials(
+    environment.DB,
+    environment.GITHUB_TOKEN_ENCRYPTION_KEY,
+    createWorkspaceGitHubCredentials,
+    revokeCheckoutToken,
+  );
   const call = async (path: string, body: BodyInit, headers = new Headers()) => {
     const localUrl = import.meta.env.DEV ? environment.LOCAL_MODAL_BRIDGE_URL : undefined;
     if (localUrl) {
@@ -48,13 +57,24 @@ export function containerProvider(
     const response = localUrl
       ? await fetch(`${localUrl}${path}`, options)
       : await environment.MODAL_BRIDGE.getByName(shard).fetch(`http://bridge${path}`, options);
-    if (!response.ok) throw new Error("Workspace provider unavailable.");
+    if (path === "/capabilities") await requireBridgeCompatibility(response);
+    else if (!response.ok)
+      throw new Error(`Workspace provider request failed (${path}, HTTP ${response.status}).`);
     return response;
   };
   return {
     async execute(request) {
       const runId = request.name.slice("sparkles-".length);
-      if (request.action === "stop") await revokeModelGateway(environment.DB, runId);
+      if (
+        request.action === "allocate" ||
+        request.action === "create" ||
+        request.action === "start"
+      )
+        await call("/capabilities", "{}");
+      if (request.action === "stop") {
+        await revokeModelGateway(environment.DB, runId);
+        await github.revoke(runId);
+      }
       if ((request.action === "allocate" || request.action === "create") && request.repository) {
         const owner = z
           .object({ user_id: z.string() })
@@ -117,7 +137,12 @@ export function containerProvider(
           gateway: { ...request.gateway, contextWindow: model.contextWindow },
         };
       }
-      return bridgeResponseSchema.parse(
+      if (request.action === "create" || request.action === "start") {
+        if (!request.repository)
+          throw new Error("Workspace repository is required for GitHub access.");
+        request = { ...request, github: await github.issue(taskId, runId, request.repository) };
+      }
+      const result = bridgeResponseSchema.parse(
         await (
           await call(
             "/workspace",
@@ -126,6 +151,11 @@ export function containerProvider(
           )
         ).json(),
       );
+      if (!result.running && request.action !== "stop") {
+        await revokeModelGateway(environment.DB, runId);
+        await github.revoke(runId);
+      }
+      return result;
     },
     async checkpoint(request) {
       const response = await call(
@@ -140,6 +170,7 @@ export function containerProvider(
       return { metadata, body: response.body };
     },
     async restore(request, body) {
+      await call("/capabilities", "{}");
       await call(
         "/restore",
         body,

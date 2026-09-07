@@ -100,3 +100,22 @@ it("removes the optimistic message and reports a failed send", async () => {
   expect(result.current.awaitingPrompt).toBe(false);
   expect(result.current.error).toContain("Could not send");
 });
+
+it("stops reporting activity when startup fails while preserving the queued message", async () => {
+  command.mockImplementation(({ data }) =>
+    Promise.resolve(
+      data.command.kind === "prompt"
+        ? JSON.stringify({ status: "failed", events: [], cursor: 0, head: 0 })
+        : snapshot(),
+    ),
+  );
+  const { result } = renderHook(() => useAgentConversation("task", false, command));
+  await waitFor(() => expect(result.current.snapshot?.status).toBe("idle"));
+  await act(async () => {
+    expect(await result.current.send(prompt)).toBe(true);
+  });
+  expect(result.current.snapshot?.status).toBe("failed");
+  expect(result.current.events.at(-1)?.data.text).toBe("Hello");
+  expect(result.current.awaitingPrompt).toBe(false);
+  expect(result.current.sending).toBe(false);
+});
