@@ -1,4 +1,7 @@
 import { issueModelGateway, revokeModelGateway } from "./model-gateway";
+import { requireChatGPTModel } from "../chatgpt/models";
+import { z } from "zod";
+import { createChatGPTService } from "../chatgpt/service";
 import { bridgeResponseSchema, checkpointMetadataSchema } from "../../../bridge/contracts";
 import type {
   BridgeRequest,
@@ -46,7 +49,36 @@ export function containerProvider(
             runId,
             environment.MODEL_GATEWAY_URL,
             environment.AGENT_MODEL,
+            (userId) => createChatGPTService(environment).requireConnection(userId),
           ),
+        };
+      }
+      if (
+        (request.action === "create" || request.action === "start") &&
+        request.gateway?.provider === "chatgpt"
+      ) {
+        const owner = z
+          .object({ user_id: z.string() })
+          .parse(
+            await environment.DB.prepare(
+              "SELECT user_id FROM agent_sessions WHERE task_id = ? AND run_id = ?",
+            )
+              .bind(taskId, runId)
+              .first(),
+          );
+        const model = await requireChatGPTModel(
+          environment,
+          owner.user_id,
+          request.gateway.model.replace(/^openai\//, ""),
+        );
+        if (
+          request.gateway.reasoningEffort &&
+          !model.reasoningEfforts.includes(request.gateway.reasoningEffort)
+        )
+          throw new Error("This model does not support the selected reasoning effort.");
+        request = {
+          ...request,
+          gateway: { ...request.gateway, contextWindow: model.contextWindow },
         };
       }
       return bridgeResponseSchema.parse(

@@ -25,7 +25,7 @@ export function useTaskAgent(id: string, enabled: boolean) {
         );
         if (cancelled) return;
         cursor.current = next.cursor;
-        setSnapshot(next);
+        setSnapshot((current) => ((current?.head ?? 0) > (next.head ?? 0) ? current : next));
         setEvents((previous) => [...previous, ...next.events]);
         setError(null);
       } catch {
@@ -44,7 +44,10 @@ export function useTaskAgent(id: string, enabled: boolean) {
   const send = async (command: AgentCommand) => {
     setSending(true);
     try {
-      await agentCommand({ data: { id, command } });
+      const next = agentSnapshotSchema.parse(
+        JSON.parse(await agentCommand({ data: { id, command } })),
+      );
+      setSnapshot((current) => ((current?.head ?? 0) > (next.head ?? 0) ? current : next));
       setError(null);
       return true;
     } catch {

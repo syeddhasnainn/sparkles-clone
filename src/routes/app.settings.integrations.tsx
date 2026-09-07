@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { createFileRoute } from "@tanstack/react-router";
+import { ChatGPTSettings } from "@/components/settings/chatgpt-settings";
 import { GitHubSettings } from "@/components/settings/github-settings";
 
 const statuses = ["connected", "cancelled", "failed", "unavailable", "installed"] as const;
@@ -15,5 +16,9 @@ export const Route = createFileRoute("/app/settings/integrations")({
 function Integrations() {
   const { github } = Route.useSearch();
 
-  return <GitHubSettings status={github} />;
+  return (
+    <GitHubSettings status={github}>
+      <ChatGPTSettings />
+    </GitHubSettings>
+  );
 }

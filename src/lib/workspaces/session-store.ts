@@ -1,4 +1,6 @@
 import { z } from "zod";
+import type { AgentSelection } from "../../../bridge/agent-selection";
+import { permissionModesSchema } from "../../../bridge/permission-modes";
 import {
   agentEventSchema,
   agentSnapshotSchema,
@@ -8,6 +10,7 @@ import {
 import type { AgentCommand, AgentSnapshot, CheckpointMetadata } from "../../../bridge/contracts";
 
 export interface SessionOwner {
+  selection?: AgentSelection;
   taskId: string;
   userId: string;
   runId: string;
@@ -71,9 +74,15 @@ export function createSessionStore(db: Pick<D1Database, "prepare" | "batch">): S
     async ensure(owner) {
       await db
         .prepare(
-          "INSERT INTO agent_sessions(task_id, user_id, run_id, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT(task_id) DO NOTHING",
+          "INSERT INTO agent_sessions(task_id, user_id, run_id, updated_at, selection) VALUES (?, ?, ?, ?, ?) ON CONFLICT(task_id) DO NOTHING",
         )
-        .bind(owner.taskId, owner.userId, owner.runId, Date.now())
+        .bind(
+          owner.taskId,
+          owner.userId,
+          owner.runId,
+          Date.now(),
+          owner.selection ? JSON.stringify(owner.selection) : null,
+        )
         .run();
       await readSession(owner);
     },
@@ -102,7 +111,17 @@ export function createSessionStore(db: Pick<D1Database, "prepare" | "batch">): S
           data: JSON.parse(parsed.payload),
         });
       });
+      const modeEvent = await db
+        .prepare(
+          "SELECT payload FROM agent_events WHERE task_id = ? AND type = 'permission_modes' ORDER BY event_id DESC LIMIT 1",
+        )
+        .bind(owner.taskId)
+        .first();
+      const modePayload = z.object({ payload: z.string() }).safeParse(modeEvent);
       return {
+        permissionModes: modePayload.success
+          ? permissionModesSchema.parse(JSON.parse(modePayload.data.payload))
+          : undefined,
         status: session.status,
         sessionId: session.session_id,
         events,

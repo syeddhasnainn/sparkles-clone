@@ -1,4 +1,5 @@
 import { checkpointIntervalMs, workspaceLifetimeMs } from "../../../bridge/contracts";
+import { defaultAgentSelection } from "../../../bridge/agent-selection";
 import type { WorkspaceViewCommand } from "../../../bridge/workspace-view-contracts";
 import type {
   AgentCommand,
@@ -60,6 +61,7 @@ const owner = (record: WorkspaceRecord): SessionOwner => ({
   taskId: record.id,
   userId: record.userId,
   runId: record.runId || record.id,
+  selection: record.selection,
 });
 const sandboxName = (record: WorkspaceRecord) => `sparkles-${record.runId || record.id}`;
 const terminal = (record: WorkspaceRecord) => ["stopped", "failed"].includes(record.status);
@@ -94,7 +96,12 @@ export class WorkspaceController {
       const records = [...(await storage.list()).values()];
       const previous = records.find((record) => record.requestId === input.requestId);
       if (previous) {
-        if (previous.prompt !== input.prompt || previous.repository.id !== input.repository.id)
+        if (
+          previous.prompt !== input.prompt ||
+          previous.repository.id !== input.repository.id ||
+          JSON.stringify(previous.selection ?? defaultAgentSelection) !==
+            JSON.stringify(input.selection ?? defaultAgentSelection)
+        )
           throw new Error("This request was already used for another workspace.");
         return publicWorkspace(previous);
       }
@@ -107,6 +114,7 @@ export class WorkspaceController {
         requestId: input.requestId,
         userId,
         prompt: input.prompt,
+        selection: input.selection ?? defaultAgentSelection,
         repository: input.repository,
         status: "provisioning",
         phase: "sandbox",

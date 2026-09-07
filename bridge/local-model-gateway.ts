@@ -7,14 +7,14 @@ export async function startLocalModelGateway() {
   const server = createServer((request, response) => {
     if (
       request.method !== "POST" ||
-      request.url !== "/api/model/chat/completions" ||
+      !["/api/model/chat/completions", "/api/model/responses"].includes(request.url || "") ||
       request.headers.origin
     ) {
       response.writeHead(404).end();
       return;
     }
     const forwarded = httpRequest(
-      "http://localhost:3000/api/model/chat/completions",
+      `http://localhost:3000${request.url}`,
       {
         method: "POST",
         headers: {

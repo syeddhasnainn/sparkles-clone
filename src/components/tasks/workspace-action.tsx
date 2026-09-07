@@ -4,10 +4,16 @@ import type { Workspace } from "../../../bridge/contracts";
 
 interface WorkspaceActionProps {
   workspace: Workspace | undefined;
+  showIcon?: boolean;
   onStop: () => Promise<void>;
   onResume: () => Promise<void>;
 }
-export function WorkspaceAction({ workspace, onStop, onResume }: WorkspaceActionProps) {
+export function WorkspaceAction({
+  workspace,
+  onStop,
+  onResume,
+  showIcon = true,
+}: WorkspaceActionProps) {
   if (workspace && ["stopped", "failed"].includes(workspace.status)) {
     return (
       <button
@@ -16,7 +22,7 @@ export function WorkspaceAction({ workspace, onStop, onResume }: WorkspaceAction
         disabled={!workspace.canResume}
         onClick={() => void onResume()}
       >
-        <AppIcon icon={PlayIcon} size={14} />
+        {showIcon && <AppIcon icon={PlayIcon} size={14} />}
         Resume workspace
       </button>
     );

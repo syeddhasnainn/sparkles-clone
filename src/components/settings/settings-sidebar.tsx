@@ -1,16 +1,8 @@
-import { AppIcon } from "../ui/app-icon";
 import { Link } from "@tanstack/react-router";
-import ArrowLeft from "@hugeicons/core-free-icons/ArrowLeft01Icon";
-import { DashboardIcon } from "@/components/dashboard/dashboard-icon";
-import { WorkspaceSwitcher } from "@/components/dashboard/workspace-switcher";
+import ArrowLeft from "@hugeicons/core-free-icons/ArrowLeft02Icon";
+import { AppIcon } from "../ui/app-icon";
 
-export function SettingsSidebar({
-  onToggle,
-  onNavigate,
-}: {
-  onToggle: () => void;
-  onNavigate: () => void;
-}) {
+export function SettingsSidebar({ onNavigate }: { onNavigate: () => void }) {
   return (
     <aside
       className="dashboard-sidebar settings-sidebar"
@@ -18,10 +10,15 @@ export function SettingsSidebar({
       aria-label="Settings sidebar"
     >
       <div className="settings-sidebar-header">
-        <WorkspaceSwitcher />
-        <button className="icon-button" aria-label="Collapse settings sidebar" onClick={onToggle}>
-          <DashboardIcon name="sidebar" />
-        </button>
+        <Link
+          to="/app"
+          className="settings-nav-link settings-back-link"
+          activeOptions={{ exact: true }}
+          onClick={onNavigate}
+        >
+          <AppIcon icon={ArrowLeft} size={14} aria-hidden="true" />
+          Back to dashboard
+        </Link>
       </div>
       <nav className="settings-navigation" aria-label="Settings">
         <section>
@@ -63,12 +60,6 @@ export function SettingsSidebar({
           ))}
         </section>
       </nav>
-      <div className="sidebar-footer">
-        <Link to="/app" className="nav-item" onClick={onNavigate}>
-          <AppIcon icon={ArrowLeft} size={16} />
-          Back to dashboard
-        </Link>
-      </div>
     </aside>
   );
 }

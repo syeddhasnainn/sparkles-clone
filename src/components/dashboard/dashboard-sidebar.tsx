@@ -1,3 +1,4 @@
+import { Tooltip, TooltipTrigger, TooltipContent } from "../ui/tooltip";
 import { AppIcon } from "../ui/app-icon";
 import { Link } from "@tanstack/react-router";
 import Eye from "@hugeicons/core-free-icons/ViewIcon";
@@ -24,16 +25,31 @@ export function DashboardSidebar({
         <Link to="/app" aria-label="Sparkles dashboard" onClick={onNavigate}>
           <img src="/brand/sparkles.svg" alt="Sparkles" />
         </Link>
-        <button className="folder-button" aria-label="New folder" disabled>
-          <AppIcon icon={FolderPlus} size={14} />
-        </button>
-        <button
-          className="icon-button sidebar-toggle"
-          onClick={onToggle}
-          aria-label="Collapse sidebar"
-        >
-          <DashboardIcon name="sidebar" />
-        </button>
+        <Tooltip>
+          <TooltipTrigger render={<span className="folder-button" />}>
+            <button
+              className="icon-button"
+              aria-label="New folder"
+              disabled
+              style={{ pointerEvents: "none" }}
+            >
+              <AppIcon icon={FolderPlus} size={16} />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">New folder — coming soon</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger
+            className="icon-button sidebar-toggle"
+            onClick={onToggle}
+            aria-label="Collapse sidebar"
+            aria-expanded={true}
+            aria-controls="dashboard-sidebar"
+          >
+            <DashboardIcon name="sidebar" size={16} />
+          </TooltipTrigger>
+          <TooltipContent side="bottom">Collapse sidebar</TooltipContent>
+        </Tooltip>
       </div>
       <div className="sidebar-actions">
         <div className="new-chat-group">

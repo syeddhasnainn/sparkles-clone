@@ -1,7 +1,8 @@
+import { agentName } from "../../../bridge/agent-selection";
 import { Streamdown } from "streamdown";
 import { code } from "@streamdown/code";
 import { z } from "zod";
-import { ToolActivity } from "./task-tools";
+import { ToolTimeline } from "./task-tools";
 import { toolCalls } from "./tool-activity";
 import type { ToolCall } from "./tool-activity";
 import type { Events } from "./task-types";
@@ -12,7 +13,7 @@ function conversation(events: Events) {
     role: string;
     text: string;
     timestamp?: number;
-    tool?: ToolCall;
+    tools?: ToolCall[];
   }[] = [];
   const tools = new Map(toolCalls(events).map((call) => [call.eventId, call]));
   let response = "";
@@ -36,7 +37,11 @@ function conversation(events: Events) {
       responseTime = undefined;
       messageId = undefined;
     }
-    if (tool) messages.push({ id: tool.id, role: "", text: "", tool });
+    if (tool) {
+      const previous = messages.at(-1);
+      if (previous?.tools) previous.tools.push(tool);
+      else messages.push({ id: tool.id, role: "", text: "", tools: [tool] });
+    }
     if (event.type === "user")
       messages.push({ id: `${event.id}:user`, role: "You", text: String(event.data.text) });
     if (event.type === "update" && event.data.sessionUpdate === "agent_message_chunk") {
@@ -69,15 +74,17 @@ function conversation(events: Events) {
 export function Conversation({
   events,
   streaming = false,
+  agentKind = "opencode",
 }: {
   events: Events;
   streaming?: boolean;
+  agentKind?: "opencode" | "codex";
 }) {
   return (
     <div className="task-messages">
       {conversation(events).map((message) =>
-        message.tool ? (
-          <ToolActivity key={message.id} call={message.tool} />
+        message.tools ? (
+          <ToolTimeline key={message.id} calls={message.tools} />
         ) : (
           <article
             key={message.id}
@@ -88,13 +95,16 @@ export function Conversation({
                   ? "task-message-system"
                   : "task-message-assistant"
             }
-            aria-label={message.role}
+            data-agent={agentKind}
+            aria-label={message.role === "OpenCode" ? agentName(agentKind) : message.role}
           >
-            {message.role === "OpenCode" && (
+            {message.role === "OpenCode" && agentKind !== "codex" && (
               <>
-                <img className="task-assistant-avatar" src="/brand/opencode.svg" alt="" />
+                {agentKind === "opencode" && (
+                  <img className="task-assistant-avatar" src="/brand/opencode.svg" alt="" />
+                )}
                 <div className="task-assistant-meta">
-                  <strong>OpenCode</strong>
+                  <strong>{agentName(agentKind)}</strong>
                   {message.timestamp && (
                     <time
                       dateTime={new Date(message.timestamp).toISOString()}
