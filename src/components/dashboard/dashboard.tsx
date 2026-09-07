@@ -5,7 +5,8 @@ import { Link, Outlet, useMatchRoute } from "@tanstack/react-router";
 import { useMobile } from "@/hooks/use-mobile";
 import { SettingsSidebar } from "@/components/settings/settings-sidebar";
 import { DashboardSidebar } from "./dashboard-sidebar";
-import { DashboardHeader, TaskHeaderContext } from "./dashboard-header";
+import { DashboardHeader } from "./dashboard-header";
+import { TaskHeaderContext } from "./task-header-context";
 import { DashboardDraftContext } from "./dashboard-draft";
 
 export function Dashboard() {

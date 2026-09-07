@@ -2,6 +2,7 @@ import { revokeModelGateway } from "./model-gateway";
 import { DurableObject } from "cloudflare:workers";
 import { createSessionStore } from "./session-store";
 import { createCheckpointStore } from "./checkpoint-store";
+import { createBrowserProfileStore } from "./browser-profile-store";
 import { WorkspaceController } from "./controller";
 import type { WorkspaceStorage } from "./controller";
 import { authorizeRepository, createCheckoutToken, revokeCheckoutToken } from "./github.server";
@@ -13,13 +14,14 @@ function workspaceStorage(
   storage: DurableObjectStorage,
   current: Pick<
     DurableObjectStorage,
-    "get" | "put" | "list" | "setAlarm" | "deleteAlarm"
+    "get" | "put" | "list" | "getAlarm" | "setAlarm" | "deleteAlarm"
   > = storage,
 ): WorkspaceStorage {
   return {
     get: (key) => current.get(key),
     put: (key, record) => current.put(key, record),
     list: () => current.list({ prefix: "workspace:" }),
+    getAlarm: () => current.getAlarm(),
     setAlarm: (time) => current.setAlarm(time),
     deleteAlarm: () => current.deleteAlarm(),
     transaction: (callback) =>
@@ -31,6 +33,11 @@ export class WorkspaceManager extends DurableObject<Env> {
   private controller = new WorkspaceController(workspaceStorage(this.ctx.storage), {
     sessions: createSessionStore(this.env.DB),
     checkpoints: createCheckpointStore(this.env.CHECKPOINTS),
+    browserProfiles: createBrowserProfileStore(
+      this.env.DB,
+      this.env.CHECKPOINTS,
+      this.env.GITHUB_TOKEN_ENCRYPTION_KEY,
+    ),
     authorize: authorizeRepository,
     checkoutToken: createCheckoutToken,
     revokeCheckoutToken,
@@ -39,6 +46,12 @@ export class WorkspaceManager extends DurableObject<Env> {
 
   list() {
     return this.controller.list();
+  }
+  browserSessions(userId: string) {
+    return this.controller.browserSessions(userId);
+  }
+  clearBrowserSessions(userId: string) {
+    return this.controller.clearBrowserSessions(userId);
   }
   start(userId: string, input: CreateWorkspace) {
     return this.controller.start(userId, input);

@@ -3,6 +3,8 @@ import type { SavedCheckpoint, SessionStore } from "./session-store";
 import { WorkspaceController } from "./controller";
 import type { WorkspaceDependencies, WorkspaceRecord, WorkspaceStorage } from "./controller";
 import type { AgentSnapshot, CreateWorkspace } from "../../../bridge/contracts";
+import type { BrowserProfileStore } from "./browser-profile-store";
+import type { WorkspaceProvider } from "./provider.server";
 
 function harness() {
   const records = new Map<string, WorkspaceRecord>();
@@ -12,6 +14,7 @@ function harness() {
       records.set(key, structuredClone(record));
     },
     list: async () => structuredClone(records),
+    getAlarm: vi.fn(async (): Promise<number | null> => null),
     setAlarm: vi.fn(async () => {}),
     deleteAlarm: vi.fn(async () => {}),
     transaction: async (callback) => callback(storage),
@@ -75,6 +78,29 @@ function harness() {
       },
     }),
   );
+  const seedBrowser = vi.fn<BrowserProfileStore["seed"]>(async () => ({
+    lease: { generation: 0, revision: 0 },
+    profile: null,
+  }));
+  const publishBrowser = vi.fn<BrowserProfileStore["publish"]>(
+    async (owner, repositoryName, expected, archive) => ({
+      key: archive.metadata.id,
+      repositoryId: owner.repositoryId,
+      repositoryName,
+      generation: expected.generation,
+      revision: expected.revision + 1,
+      metadata: archive.metadata,
+      encryptedSize: archive.metadata.size,
+      updatedAt: archive.metadata.createdAt,
+    }),
+  );
+  const captureBrowser = vi.fn<NonNullable<WorkspaceProvider["captureBrowser"]>>(async () => null);
+  const restoreBrowser = vi.fn(async () => {});
+  const resetBrowser = vi.fn(async () => {});
+  const clearBrowser = vi.fn<BrowserProfileStore["clear"]>(async () => ({
+    generation: 1,
+    cleanupPending: false,
+  }));
   const dependencies: WorkspaceDependencies = {
     authorize: vi.fn(async (_userId, repository) => repository),
     checkoutToken: vi.fn(async () => "secret-token"),
@@ -83,6 +109,15 @@ function harness() {
       put: async (_owner, archive) => ({ key: archive.metadata.id, metadata: archive.metadata }),
       get: async () => new Blob(["checkpoint"]).stream(),
       delete: async () => {},
+    },
+    browserProfiles: {
+      seed: seedBrowser,
+      publish: publishBrowser,
+      read: async () => new Blob(["browser-profile"]).stream(),
+      list: async () => [],
+      clear: clearBrowser,
+      cleanup: async () => false,
+      error: async () => {},
     },
     provider: (id) => ({
       execute,
@@ -99,6 +134,9 @@ function harness() {
         body: new Blob(["checkpoint"]).stream(),
       }),
       restore: vi.fn(async () => {}),
+      captureBrowser,
+      restoreBrowser,
+      resetBrowser,
     }),
   };
   return {
@@ -109,6 +147,12 @@ function harness() {
     records,
     histories,
     backups,
+    seedBrowser,
+    publishBrowser,
+    captureBrowser,
+    restoreBrowser,
+    resetBrowser,
+    clearBrowser,
   };
 }
 
@@ -121,6 +165,142 @@ function input(): CreateWorkspace {
 }
 
 describe("workspace lifecycle", () => {
+  it("recovers a missing alarm and reconciles expired ready tasks when listing", async () => {
+    const { controller, storage, records } = harness();
+    const workspace = await controller.start("user", input());
+    await controller.alarm();
+    const record = records.get(`workspace:${workspace.id}`)!;
+    record.expiresAt = Date.now() - 1000;
+    vi.mocked(storage.setAlarm).mockClear();
+
+    expect((await controller.list())[0].status).toBe("stopping");
+    expect(records.get(`workspace:${workspace.id}`)?.stopRequestedAt).toBeGreaterThan(0);
+    expect(storage.setAlarm).toHaveBeenCalledTimes(1);
+    await controller.alarm();
+    expect((await controller.list())[0].status).toBe("stopped");
+  });
+
+  it("does not postpone an existing alarm or wake completed tasks when listing", async () => {
+    const { controller, storage, records } = harness();
+    const workspace = await controller.start("user", input());
+    vi.mocked(storage.getAlarm).mockResolvedValue(Date.now() + 1000);
+    vi.mocked(storage.setAlarm).mockClear();
+    await controller.list();
+    expect(storage.setAlarm).not.toHaveBeenCalled();
+    records.get(`workspace:${workspace.id}`)!.status = "stopped";
+    vi.mocked(storage.getAlarm).mockResolvedValue(null);
+    await controller.list();
+    expect(storage.setAlarm).not.toHaveBeenCalled();
+  });
+
+  it("restores a project browser profile after checkout and before the first task", async () => {
+    const harnessed = harness();
+    const metadata = {
+      id: crypto.randomUUID(),
+      createdAt: Date.now(),
+      size: 15,
+      sha256: "1".repeat(64),
+    };
+    harnessed.seedBrowser.mockResolvedValue({
+      lease: { generation: 2, revision: 4 },
+      profile: {
+        key: "saved-profile",
+        repositoryId: 1,
+        repositoryName: "owner/repo",
+        generation: 2,
+        revision: 4,
+        metadata,
+        encryptedSize: 31,
+        updatedAt: metadata.createdAt,
+      },
+    });
+
+    await harnessed.controller.start("owner", input());
+    await harnessed.controller.alarm();
+
+    const createCall = harnessed.execute.mock.calls.findIndex(
+      ([request]) => request.action === "create",
+    );
+    expect(createCall).toBeGreaterThanOrEqual(0);
+    expect(harnessed.restoreBrowser).toHaveBeenCalledWith(
+      expect.objectContaining({ profile: metadata }),
+      expect.any(ReadableStream),
+    );
+    expect(harnessed.execute.mock.invocationCallOrder[createCall]).toBeLessThan(
+      harnessed.restoreBrowser.mock.invocationCallOrder[0],
+    );
+    expect(harnessed.histories.values().next().value?.status).toBe("starting");
+  });
+
+  it("captures browser changes while the agent is running", async () => {
+    const harnessed = harness();
+    const task = await harnessed.controller.start("owner", input());
+    await harnessed.controller.alarm();
+    const record = harnessed.records.get(`workspace:${task.id}`)!;
+    harnessed.records.set(`workspace:${task.id}`, {
+      ...record,
+      agentStarted: true,
+      browserProfileAt: 0,
+      retryAt: 0,
+    });
+    harnessed.histories.set(task.id, {
+      status: "running",
+      sessionId: "test-session",
+      events: [],
+      cursor: 0,
+      head: 0,
+    });
+    harnessed.captureBrowser.mockResolvedValueOnce({
+      metadata: {
+        id: crypto.randomUUID(),
+        createdAt: Date.now(),
+        size: 1,
+        sha256: "2".repeat(64),
+      },
+      body: new Blob(["x"]).stream(),
+    });
+
+    await harnessed.controller.alarm();
+
+    expect(harnessed.captureBrowser).toHaveBeenCalledOnce();
+    expect(harnessed.publishBrowser).toHaveBeenCalledOnce();
+    expect(harnessed.records.get(`workspace:${task.id}`)?.browserLease?.revision).toBe(1);
+  });
+
+  it("does not publish a profile when the cloud browser was never opened", async () => {
+    const harnessed = harness();
+    const task = await harnessed.controller.start("owner", input());
+    await harnessed.controller.alarm();
+    const record = harnessed.records.get(`workspace:${task.id}`)!;
+    harnessed.records.set(`workspace:${task.id}`, {
+      ...record,
+      browserProfileAt: 0,
+      retryAt: 0,
+    });
+
+    await harnessed.controller.alarm();
+
+    expect(harnessed.captureBrowser).toHaveBeenCalledOnce();
+    expect(harnessed.publishBrowser).not.toHaveBeenCalled();
+    expect(harnessed.records.get(`workspace:${task.id}`)?.browserProfileAt).toBeGreaterThan(0);
+  });
+
+  it("fences saving until every live browser is reset after clear", async () => {
+    const harnessed = harness();
+    const task = await harnessed.controller.start("owner", input());
+    await harnessed.controller.alarm();
+    harnessed.resetBrowser.mockRejectedValueOnce(new Error("reset failed"));
+
+    await expect(harnessed.controller.clearBrowserSessions("owner")).rejects.toThrow(
+      "running cloud browser",
+    );
+    expect(harnessed.records.get(`workspace:${task.id}`)?.browserSaveBlocked).toBe(true);
+
+    await harnessed.controller.clearBrowserSessions("owner");
+    expect(harnessed.records.get(`workspace:${task.id}`)?.browserSaveBlocked).toBe(false);
+    expect(harnessed.resetBrowser).toHaveBeenCalledTimes(2);
+  });
+
   it("authorizes view access and binds commands to the current sandbox generation", async () => {
     const { controller, execute, dependencies } = harness();
     const task = await controller.start("owner", input());
@@ -388,19 +568,48 @@ describe("workspace lifecycle", () => {
   });
 });
 
-it("checkpoints and stops a workspace after one minute idle", async () => {
+it("keeps a workspace for nine idle minutes and checkpoints it after ten", async () => {
   const { controller, records, execute } = harness();
   const task = await controller.start("user", input());
   await controller.alarm();
   const record = records.get(`workspace:${task.id}`)!;
   record.agentStarted = true;
-  record.idleSince = Date.now() - 60_001;
+  record.idleSince = Date.now() - 9 * 60_000;
   record.retryAt = 0;
+  await controller.alarm();
+  expect(records.get(`workspace:${task.id}`)?.status).toBe("ready");
+  const current = records.get(`workspace:${task.id}`)!;
+  current.idleSince = Date.now() - 600_001;
+  current.retryAt = 0;
   await controller.alarm();
   expect(records.get(`workspace:${task.id}`)?.status).toBe("stopping");
   await controller.alarm();
   expect(execute).toHaveBeenCalledWith({ action: "stop", name: `sparkles-${task.id}` });
   expect(records.get(`workspace:${task.id}`)?.canResume).toBe(true);
+});
+
+it("keeps a workspace alive while its preview is being viewed", async () => {
+  const { controller, records, execute } = harness();
+  const task = await controller.start("user", input());
+  await controller.alarm();
+  const record = records.get(`workspace:${task.id}`)!;
+  record.agentStarted = true;
+  record.idleSince = Date.now() - 600_001;
+  record.retryAt = 0;
+  execute.mockResolvedValueOnce({
+    running: true,
+    sandboxId: "sb-test",
+    commit: record.commit,
+    view: {
+      kind: "services",
+      preview: { status: "ready", command: "pnpm run dev", port: 3000, managed: true, log: "" },
+      desktop: { status: "stopped", log: "" },
+    },
+  });
+  await controller.view(task.id, { kind: "services" }, "https://app.example");
+  await controller.alarm();
+  expect((await controller.list())[0].status).toBe("ready");
+  expect(Date.now() - records.get(`workspace:${task.id}`)!.idleSince!).toBeLessThan(60_000);
 });
 
 it("keeps an active agent alive beyond the idle timeout", async () => {
@@ -409,7 +618,7 @@ it("keeps an active agent alive beyond the idle timeout", async () => {
   await controller.alarm();
   const record = records.get(`workspace:${task.id}`)!;
   record.agentStarted = true;
-  record.idleSince = Date.now() - 60_001;
+  record.idleSince = Date.now() - 600_001;
   record.retryAt = 0;
   execute.mockResolvedValue({
     running: true,

@@ -14,9 +14,41 @@ function configured() {
   );
 }
 
+const cloudBrowserSessionsSchema = z.object({
+  count: z.number().int().nonnegative(),
+  updatedAt: z.number().int().positive().nullable(),
+  cleanupPending: z.boolean(),
+  projects: z.array(
+    z.object({
+      repositoryId: z.number().int().positive(),
+      repositoryName: z.string(),
+      updatedAt: z.number().int().positive(),
+    }),
+  ),
+});
+
+const clearCloudBrowserSessionsSchema = z.object({
+  generation: z.number().int().nonnegative(),
+  cleanupPending: z.boolean(),
+});
+
 export const listWorkspaces = createServerFn({ method: "GET" }).handler(async () => {
   const { userId } = await requireGitHubUser();
   return { configured: configured(), workspaces: await env.WORKSPACES.getByName(userId).list() };
+});
+
+export const getCloudBrowserSessions = createServerFn({ method: "GET" }).handler(async () => {
+  const { userId } = await requireGitHubUser();
+  return cloudBrowserSessionsSchema.parse(
+    await env.WORKSPACES.getByName(userId).browserSessions(userId),
+  );
+});
+
+export const clearCloudBrowserSessions = createServerFn({ method: "POST" }).handler(async () => {
+  const { userId } = await requireGitHubUser();
+  return clearCloudBrowserSessionsSchema.parse(
+    await env.WORKSPACES.getByName(userId).clearBrowserSessions(userId),
+  );
 });
 
 export const createWorkspace = createServerFn({ method: "POST" })

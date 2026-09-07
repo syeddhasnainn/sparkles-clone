@@ -15,6 +15,12 @@ import type {
 import type { WorkspaceProvider } from "./provider.server";
 import type { SavedCheckpoint, SessionOwner, SessionStore } from "./session-store";
 import type { CheckpointStore } from "./checkpoint-store";
+import { BrowserProfileConflictError } from "./browser-profile-store";
+import type {
+  BrowserProfileLease,
+  BrowserProfileOwner,
+  BrowserProfileStore,
+} from "./browser-profile-store";
 
 export interface WorkspaceRecord extends Workspace {
   userId: string;
@@ -29,6 +35,10 @@ export interface WorkspaceRecord extends Workspace {
   stopRequestedAt?: number;
   idleSince?: number;
   pendingPrompt?: Extract<AgentCommand, { kind: "prompt" }>;
+  browserLease?: BrowserProfileLease;
+  browserReady?: boolean;
+  browserProfileAt?: number;
+  browserSaveBlocked?: boolean;
 }
 
 function publicWorkspace(record: WorkspaceRecord): Workspace {
@@ -45,6 +55,10 @@ function publicWorkspace(record: WorkspaceRecord): Workspace {
     stopRequestedAt: _stopRequestedAt,
     idleSince: _idleSince,
     pendingPrompt: _pendingPrompt,
+    browserLease: _browserLease,
+    browserReady: _browserReady,
+    browserProfileAt: _browserProfileAt,
+    browserSaveBlocked: _browserSaveBlocked,
     ...workspace
   } = record;
   return workspace;
@@ -53,6 +67,7 @@ export interface WorkspaceStorage {
   get(key: string): Promise<WorkspaceRecord | undefined>;
   put(key: string, record: WorkspaceRecord): Promise<void>;
   list(): Promise<Map<string, WorkspaceRecord>>;
+  getAlarm(): Promise<number | null>;
   setAlarm(time: number): Promise<void>;
   deleteAlarm(): Promise<void>;
   transaction<T>(callback: (storage: WorkspaceStorage) => Promise<T>): Promise<T>;
@@ -64,6 +79,7 @@ export interface WorkspaceDependencies {
   provider: (id: string) => WorkspaceProvider;
   sessions: SessionStore;
   checkpoints: CheckpointStore;
+  browserProfiles: BrowserProfileStore;
 }
 const owner = (record: WorkspaceRecord): SessionOwner => ({
   taskId: record.id,
@@ -72,20 +88,100 @@ const owner = (record: WorkspaceRecord): SessionOwner => ({
   selection: record.selection,
 });
 const sandboxName = (record: WorkspaceRecord) => `sparkles-${record.runId || record.id}`;
+const browserOwner = (record: WorkspaceRecord): BrowserProfileOwner => ({
+  userId: record.userId,
+  repositoryId: record.repository.id,
+});
 const terminal = (record: WorkspaceRecord) => ["stopped", "failed"].includes(record.status);
 
 export class WorkspaceController {
   private readonly syncs = new Map<string, Promise<AgentSnapshot | null>>();
   private readonly captures = new Map<string, Promise<void>>();
+  private browserOperation: Promise<void> = Promise.resolve();
   constructor(
     private readonly storage: WorkspaceStorage,
     private readonly dependencies: WorkspaceDependencies,
   ) {}
 
+  private runBrowserOperation<T>(callback: () => Promise<T>) {
+    const operation = this.browserOperation.then(callback);
+    this.browserOperation = operation.then(
+      () => {},
+      () => {},
+    );
+    return operation;
+  }
+
   async list(): Promise<Workspace[]> {
-    return [...(await this.storage.list()).values()]
-      .sort((a, b) => b.createdAt - a.createdAt)
-      .map(publicWorkspace);
+    return this.storage.transaction(async (storage) => {
+      const records = [...(await storage.list()).values()];
+      const now = Date.now();
+      for (const record of records) {
+        if (record.status === "ready" && record.expiresAt <= now) {
+          record.status = "stopping";
+          record.stopRequestedAt = now;
+          record.retryAt = now;
+          await storage.put(`workspace:${record.id}`, record);
+        }
+      }
+      if (records.some((record) => !terminal(record) || record.pendingPrompt)) {
+        if ((await storage.getAlarm()) === null) await storage.setAlarm(now + 100);
+      }
+      return records.sort((a, b) => b.createdAt - a.createdAt).map(publicWorkspace);
+    });
+  }
+  async browserSessions(userId: string) {
+    return this.runBrowserOperation(async () => {
+      const cleanupPending = await this.dependencies.browserProfiles.cleanup(userId);
+      const profiles = await this.dependencies.browserProfiles.list(userId);
+      return {
+        count: profiles.length,
+        updatedAt: profiles[0]?.updatedAt ?? null,
+        cleanupPending,
+        projects: profiles.map((profile) => ({
+          repositoryId: profile.repositoryId,
+          repositoryName: profile.repositoryName,
+          updatedAt: profile.updatedAt,
+        })),
+      };
+    });
+  }
+
+  async clearBrowserSessions(userId: string) {
+    return this.runBrowserOperation(async () => {
+      const cleared = await this.dependencies.browserProfiles.clear(userId);
+      const active = [...(await this.storage.list()).values()].filter(
+        (record) => record.userId === userId && !terminal(record),
+      );
+      for (const record of active)
+        await this.patch(record, {
+          browserLease: { generation: cleared.generation, revision: 0 },
+          browserProfileAt: Date.now(),
+          browserSaveBlocked: true,
+          browserSessionError: null,
+        });
+
+      const failures: string[] = [];
+      for (const record of active) {
+        const provider = this.dependencies.provider(record.id);
+        try {
+          if (!provider.resetBrowser)
+            throw new Error("Cloud-browser session reset is unavailable.");
+          await provider.resetBrowser({ name: sandboxName(record) });
+          await this.patch(record, { browserSaveBlocked: false, browserSessionError: null });
+        } catch {
+          const message =
+            "Saved sessions were cleared, but a running cloud browser could not be reset. Retry clearing before using it.";
+          await this.patch(record, { browserSessionError: message });
+          failures.push(record.id);
+        }
+      }
+      if (failures.length)
+        throw new Error(
+          "Saved sessions were cleared, but a running cloud browser could not be reset. Retry clearing.",
+        );
+      return cleared;
+    });
   }
   private async record(id: string) {
     const record = await this.storage.get(`workspace:${id}`);
@@ -171,6 +267,11 @@ export class WorkspaceController {
         retryAt: 0,
         stopRequestedAt: undefined,
         idleSince: undefined,
+        browserLease: undefined,
+        browserReady: false,
+        browserProfileAt: undefined,
+        browserSaveBlocked: false,
+        browserSessionError: null,
         sandboxId: null,
       });
       await storage.setAlarm(Date.now() + 100);
@@ -242,6 +343,8 @@ export class WorkspaceController {
     if (latest.status !== "ready" || owner(latest).runId !== owner(record).runId)
       throw new Error("The workspace stopped while opening the view.");
     if (!response.view) throw new Error("Workspace views are unavailable.");
+    if (response.view.kind !== "error" && latest.idleSince !== undefined)
+      await this.patch(latest, { idleSince: Date.now() });
     return response.view;
   }
   async stop(id: string): Promise<string> {
@@ -331,13 +434,107 @@ export class WorkspaceController {
       if (this.captures.get(runId) === operation) this.captures.delete(runId);
     }
   }
+  private async restoreBrowser(record: WorkspaceRecord) {
+    if (record.browserReady) return;
+    await this.runBrowserOperation(async () => {
+      const current = await this.record(record.id);
+      if (current.browserReady || current.status === "stopping") return;
+      const provider = this.dependencies.provider(current.id);
+      const seed = await this.dependencies.browserProfiles.seed(
+        browserOwner(current),
+        current.repository.name,
+      );
+      await this.patch(current, {
+        browserLease: seed.lease,
+        browserSaveBlocked: false,
+        browserSessionError: null,
+      });
+      if (seed.profile) {
+        if (!provider.restoreBrowser)
+          throw new Error("Cloud-browser session restoration is unavailable.");
+        const body = await this.dependencies.browserProfiles.read(
+          browserOwner(current),
+          seed.profile,
+        );
+        await provider.restoreBrowser(
+          { name: sandboxName(current), profile: seed.profile.metadata },
+          body,
+        );
+        const latest = await this.dependencies.browserProfiles.seed(
+          browserOwner(current),
+          current.repository.name,
+        );
+        if (
+          latest.lease.generation !== seed.lease.generation ||
+          latest.lease.revision !== seed.lease.revision ||
+          latest.profile?.key !== seed.profile.key
+        )
+          throw new Error("Saved cloud-browser session changed during restoration.");
+      }
+      await this.patch(current, {
+        browserReady: true,
+        browserProfileAt: seed.profile?.updatedAt ?? Date.now(),
+      });
+    });
+  }
+
+  private async captureBrowser(record: WorkspaceRecord) {
+    if (!record.browserReady || record.browserSaveBlocked) return;
+    await this.runBrowserOperation(async () => {
+      const current = await this.record(record.id);
+      if (
+        !current.browserReady ||
+        current.browserSaveBlocked ||
+        current.status === "stopped" ||
+        current.status === "failed"
+      )
+        return;
+      const provider = this.dependencies.provider(current.id);
+      if (!provider.captureBrowser) throw new Error("Cloud-browser session saving is unavailable.");
+      const lease = current.browserLease;
+      if (!lease) throw new Error("Cloud-browser session ownership is unavailable.");
+
+      try {
+        const archive = await provider.captureBrowser({
+          name: sandboxName(current),
+          id: crypto.randomUUID(),
+        });
+        if (!archive) {
+          await this.patch(current, { browserProfileAt: Date.now(), browserSessionError: null });
+          return;
+        }
+        const saved = await this.dependencies.browserProfiles.publish(
+          browserOwner(current),
+          current.repository.name,
+          lease,
+          archive,
+        );
+        await this.patch(current, {
+          browserLease: { generation: saved.generation, revision: saved.revision },
+          browserProfileAt: saved.updatedAt,
+          browserSessionError: null,
+        });
+      } catch (error) {
+        const message =
+          error instanceof BrowserProfileConflictError
+            ? "Browser changes from this workspace were not saved because a newer session already exists for this project."
+            : "Cloud-browser session saving failed. The last successful saved session is preserved.";
+        await this.dependencies.browserProfiles.error(browserOwner(current), message);
+        await this.patch(current, {
+          browserSaveBlocked: error instanceof BrowserProfileConflictError,
+          browserSessionError: message,
+        });
+        if (!(error instanceof BrowserProfileConflictError)) throw error;
+      }
+    });
+  }
   private async provision(record: WorkspaceRecord) {
     const provider = this.dependencies.provider(record.id);
     const repository = await this.dependencies.authorize(record.userId, record.repository);
     await this.dependencies.sessions.ensure(owner(record));
     if (record.restoring) await this.dependencies.sessions.beginRun(owner(record));
     if (!record.phase || record.phase === "sandbox") {
-      await provider.execute({ action: "allocate", name: sandboxName(record) });
+      await provider.execute({ action: "allocate", name: sandboxName(record), repository });
       if ((await this.record(record.id)).status === "stopping") return;
       await this.patch(record, { phase: "checkout" });
     }
@@ -356,6 +553,8 @@ export class WorkspaceController {
         body,
       );
       if ((await this.record(record.id)).status === "stopping") return;
+      await this.restoreBrowser(record);
+      if ((await this.record(record.id)).status === "stopping") return;
       result = await provider.execute({ action: "start", name: sandboxName(record) });
     } else {
       const token = await this.dependencies.checkoutToken(repository);
@@ -367,6 +566,8 @@ export class WorkspaceController {
           repository,
           token,
         });
+        if ((await this.record(record.id)).status === "stopping") return;
+        await this.restoreBrowser(record);
       } finally {
         await this.dependencies.revokeCheckoutToken?.(token);
       }
@@ -397,6 +598,8 @@ export class WorkspaceController {
       });
       return;
     }
+    if (!record.browserProfileAt || record.browserProfileAt + checkpointIntervalMs <= Date.now())
+      await this.captureBrowser(record);
     if (record.pendingPrompt && snapshot.status === "idle" && record.agentStarted) {
       await this.dependencies.sessions.reservePrompt(owner(record), record.pendingPrompt);
       await this.dependencies.provider(record.id).execute({
@@ -473,6 +676,7 @@ export class WorkspaceController {
           await this.patch(record, { retryAt: Date.now() + 1000 });
           return;
         }
+        await this.captureBrowser(record).catch(() => {});
         await provider.execute({ action: "stop", name: sandboxName(record) });
         await this.dependencies.sessions.finish(owner(record), true);
         await this.patch(record, {
@@ -487,6 +691,7 @@ export class WorkspaceController {
         return;
       }
     }
+    await this.captureBrowser(record).catch(() => {});
     await provider.execute({ action: "stop", name: sandboxName(record) });
     await this.dependencies.sessions.finish(owner(record), record.terminalStatus === "failed");
     await this.patch(record, {

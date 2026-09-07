@@ -38,12 +38,14 @@ export function useWorkspaces() {
     try {
       await resumeWorkspace({ data: { id } });
       await refresh();
+      return true;
     } catch (caught) {
       setError(
         caught instanceof Error
           ? caught.message
           : "Could not restore the workspace. Please try again.",
       );
+      return false;
     }
   };
   return { data, error, refresh, stop, resume };

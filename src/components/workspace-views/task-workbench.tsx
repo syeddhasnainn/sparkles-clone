@@ -1,5 +1,5 @@
 import { createPortal } from "react-dom";
-import { TaskHeaderContext } from "../dashboard/dashboard-header";
+import { TaskHeaderContext } from "../dashboard/task-header-context";
 import { useContext, useRef, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import File01Icon from "@hugeicons/core-free-icons/File01Icon";
@@ -9,6 +9,8 @@ import SidebarRightIcon from "@hugeicons/core-free-icons/SidebarRightIcon";
 import { AppIcon } from "../ui/app-icon";
 import { WorkspaceFiles } from "./workspace-files";
 import { WorkspaceLiveView } from "./workspace-live-view";
+import { WorkspacePreviewContext } from "./workspace-preview-context";
+import { requestView } from "./view-client";
 
 const views = [
   { id: "files", label: "Files", icon: File01Icon },
@@ -21,20 +23,32 @@ export function TaskWorkbench({
   taskId,
   sandboxId,
   ready,
+  status,
+  canResume,
+  onStart,
+  onStartPreview,
+  canStartPreview,
+  agentWorking,
   children,
 }: {
   taskId: string;
   sandboxId?: string | null;
   ready: boolean;
+  status?: string;
+  canResume: boolean;
+  onStart: () => Promise<boolean>;
+  onStartPreview: () => Promise<boolean>;
+  canStartPreview: boolean;
+  agentWorking: boolean;
   children: ReactNode;
 }) {
   const headerElement = useContext(TaskHeaderContext);
   const [view, setView] = useState<View>("desktop");
   const [open, setOpen] = useState(false);
+  const [startView, setStartView] = useState<View | null>(null);
   const [width, setWidth] = useState(55);
   const [resizing, setResizing] = useState(false);
   const layout = useRef<HTMLDivElement>(null);
-  const activeIcon = views.find((item) => item.id === view)?.icon ?? File01Icon;
   const panelStyle: CSSProperties & { "--workspace-panel-width": string } = {
     "--workspace-panel-width": `${width}%`,
   };
@@ -59,7 +73,14 @@ export function TaskWorkbench({
           headerElement,
         )}
       <div className="task-workbench-layout">
-        {children}
+        <WorkspacePreviewContext
+          value={() => {
+            setView("preview");
+            setOpen(true);
+          }}
+        >
+          {children}
+        </WorkspacePreviewContext>
         {open && (
           <>
             <div
@@ -114,23 +135,94 @@ export function TaskWorkbench({
                 ))}
               </div>
               {!ready ? (
-                <div className="workspace-view-empty">
-                  <AppIcon icon={activeIcon} size={30} />
-                  <h3>Workspace is offline</h3>
-                  <p>
-                    Resume this workspace to browse files or open its live views. Your conversation
-                    and draft are still available.
-                  </p>
-                </div>
+                <OfflineWorkspace
+                  view={view}
+                  status={status}
+                  canResume={canResume}
+                  startDisabled={view === "preview" && !canStartPreview}
+                  onStart={async () => {
+                    setStartView(view);
+                    return view === "preview" ? onStartPreview() : onStart();
+                  }}
+                />
               ) : view === "files" ? (
                 <WorkspaceFiles key={sandboxId} taskId={taskId} />
               ) : (
-                <WorkspaceLiveView key={`${sandboxId}:${view}`} taskId={taskId} service={view} />
+                <WorkspaceLiveView
+                  key={`${sandboxId}:${view}`}
+                  taskId={taskId}
+                  service={view}
+                  autoStartDesktop={startView === "desktop"}
+                  onStartPreview={onStartPreview}
+                  canStartPreview={canStartPreview}
+                  agentWorking={agentWorking}
+                  request={requestView}
+                />
               )}
             </aside>
           </>
         )}
       </div>
+    </div>
+  );
+}
+
+function OfflineWorkspace({
+  view,
+  status,
+  canResume,
+  onStart,
+  startDisabled,
+}: {
+  view: View;
+  status?: string;
+  canResume: boolean;
+  onStart: () => Promise<boolean>;
+  startDisabled: boolean;
+}) {
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState(false);
+  const busy = pending || status === "provisioning" || status === "stopping";
+  const icon = views.find((item) => item.id === view)?.icon ?? File01Icon;
+  const start = async () => {
+    setPending(true);
+    setError(false);
+    try {
+      setError(!(await onStart()));
+    } catch {
+      setError(true);
+    } finally {
+      setPending(false);
+    }
+  };
+  return (
+    <div className="workspace-view-empty">
+      <AppIcon icon={icon} size={30} />
+      <h3>
+        {status === "stopping"
+          ? "Saving workspace…"
+          : busy
+            ? "Starting sandbox…"
+            : "Workspace is offline"}
+      </h3>
+      <p>
+        {status === "stopping"
+          ? "The sandbox session ended. Finishing its save before it can be resumed."
+          : busy
+            ? "Restoring your files and preparing the workspace."
+            : "Start the sandbox to open your workspace view. Your conversation and files will be restored."}
+      </p>
+      {view !== "files" && (
+        <button
+          className="workspace-primary-button"
+          disabled={busy || !canResume || startDisabled}
+          onClick={() => void start()}
+        >
+          {busy ? "Starting…" : view === "preview" ? "Start preview" : "Start desktop"}
+        </button>
+      )}
+      {error && <p role="alert">Could not start the sandbox. Please try again.</p>}
+      {!busy && status && !canResume && <p>No saved workspace is available to restore.</p>}
     </div>
   );
 }

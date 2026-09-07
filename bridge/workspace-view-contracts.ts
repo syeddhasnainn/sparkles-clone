@@ -13,6 +13,7 @@ export const workspaceViewCommandSchema = z.discriminatedUnion("kind", [
     kind: z.literal("preview-start"),
     command: z.string().trim().min(1).max(2000),
     port: z.number().int().min(1024).max(65535),
+    title: z.string().trim().min(1).max(100).optional(),
   }),
   z.object({ kind: z.literal("preview-stop") }),
   z.object({ kind: z.literal("desktop-start") }),
@@ -52,7 +53,12 @@ export const workspaceViewResultSchema = z.discriminatedUnion("kind", [
   }),
   z.object({
     kind: z.literal("services"),
-    preview: service.extend({ command: z.string(), port: z.number(), managed: z.boolean() }),
+    preview: service.extend({
+      command: z.string(),
+      port: z.number(),
+      managed: z.boolean(),
+      title: z.string().optional(),
+    }),
     desktop: service,
   }),
   z.object({

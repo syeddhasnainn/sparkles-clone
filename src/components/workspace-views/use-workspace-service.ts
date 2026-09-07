@@ -1,16 +1,37 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { requestView } from "./view-client";
+import { useCallback, useEffect, useRef, useReducer } from "react";
+import type { requestView as RequestView } from "./view-client";
+import { isolatedWorkspaceUrl } from "./workspace-view-url";
 import type {
   WorkspaceServices,
   WorkspaceViewCommand,
 } from "../../../bridge/workspace-view-contracts";
 
-export function useWorkspaceService(taskId: string, service: "preview" | "desktop", path: string) {
-  const [services, setServices] = useState<WorkspaceServices | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [connection, setConnection] = useState<{ url: string; expiresAt: number } | null>(null);
-  const [pending, setPending] = useState(false);
-  const mounted = useRef(true);
+interface ServiceState {
+  services: WorkspaceServices | null;
+  error: string | null;
+  connection: { url: string; expiresAt: number } | null;
+  pending: boolean;
+}
+const initialState: ServiceState = {
+  services: null,
+  error: null,
+  connection: null,
+  pending: false,
+};
+
+export function useWorkspaceService(
+  taskId: string,
+  service: "preview" | "desktop",
+  path: string,
+  requestView: typeof RequestView,
+  autoStartDesktop = false,
+) {
+  const [{ services, error, connection, pending }, update] = useReducer(
+    (state: ServiceState, changes: Partial<ServiceState>) => ({ ...state, ...changes }),
+    initialState,
+  );
+  const setError = (error: string | null) => update({ error });
+  const generation = useRef(0);
   const currentPath = useRef(path);
   useEffect(() => {
     currentPath.current = path;
@@ -19,48 +40,70 @@ export function useWorkspaceService(taskId: string, service: "preview" | "deskto
   const status = services?.[service].status;
 
   useEffect(() => {
-    mounted.current = true;
+    const current = ++generation.current;
+    update(initialState);
+    connecting.current = false;
     let loading = false;
-    const refresh = async () => {
+    const refresh = (initial = false) => {
       if (loading) return;
       loading = true;
-      try {
-        const next = await requestView(taskId, { kind: "services" });
-        if (mounted.current && next.kind === "services") setServices(next);
-      } catch (error) {
-        if (mounted.current)
-          setError(error instanceof Error ? error.message : "Could not load the workspace.");
-      } finally {
-        loading = false;
-      }
+      void requestView(taskId, { kind: "services" })
+        .then((next) => {
+          if (generation.current !== current || next.kind !== "services") return;
+          update({ services: next, error: null });
+          if (
+            initial &&
+            service === "desktop" &&
+            autoStartDesktop &&
+            next.desktop.status === "stopped"
+          ) {
+            return requestView(taskId, { kind: "desktop-start" }).then((started) => {
+              if (generation.current === current && started.kind === "services")
+                update({ services: started });
+            });
+          }
+        })
+        .catch((error) => {
+          if (generation.current === current)
+            update({
+              error: error instanceof Error ? error.message : "Could not load the workspace.",
+            });
+        })
+        .finally(() => {
+          loading = false;
+        });
     };
-    void refresh();
+    void refresh(true);
     const interval = setInterval(() => void refresh(), 4000);
     return () => {
-      mounted.current = false;
+      generation.current++;
       clearInterval(interval);
     };
-  }, [taskId]);
+  }, [taskId, service, requestView, autoStartDesktop]);
 
   const connect = useCallback(async () => {
     if (connecting.current) return;
     connecting.current = true;
+    const current = generation.current;
     try {
       const next = await requestView(taskId, {
         kind: "connect",
         service,
         path: currentPath.current,
       });
-      if (mounted.current && next.kind === "connect") {
-        setConnection(next);
-        setError(null);
+      if (generation.current === current && next.kind === "connect") {
+        update({
+          connection: { ...next, url: isolatedWorkspaceUrl(next.url, window.location.origin) },
+          error: null,
+        });
       }
     } catch (error) {
-      if (mounted.current) setError(error instanceof Error ? error.message : "Could not connect.");
+      if (generation.current === current)
+        update({ error: error instanceof Error ? error.message : "Could not connect." });
     } finally {
-      connecting.current = false;
+      if (generation.current === current) connecting.current = false;
     }
-  }, [taskId, service]);
+  }, [taskId, service, requestView]);
   useEffect(() => {
     if (status !== "ready") return;
     void connect();
@@ -69,17 +112,20 @@ export function useWorkspaceService(taskId: string, service: "preview" | "deskto
   }, [status, connect]);
 
   const run = async (action: WorkspaceViewCommand) => {
-    setPending(true);
-    setError(null);
+    const current = generation.current;
+    update({ pending: true, error: null });
     try {
       const next = await requestView(taskId, action);
-      if (mounted.current && next.kind === "services") setServices(next);
-      if (action.kind === "preview-stop") setConnection(null);
+      if (generation.current !== current) return;
+      const changes: Partial<ServiceState> = {};
+      if (next.kind === "services") changes.services = next;
+      if (action.kind === "preview-stop") changes.connection = null;
+      update(changes);
     } catch (error) {
-      if (mounted.current)
-        setError(error instanceof Error ? error.message : "The service could not start.");
+      if (generation.current === current)
+        update({ error: error instanceof Error ? error.message : "The service could not start." });
     } finally {
-      if (mounted.current) setPending(false);
+      if (generation.current === current) update({ pending: false });
     }
   };
   return { services, error, setError, connection, pending, status, connect, run };

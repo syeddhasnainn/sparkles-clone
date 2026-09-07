@@ -3,7 +3,14 @@ import type { IncomingMessage } from "node:http";
 import { z } from "zod";
 import { Readable } from "node:stream";
 import { once } from "node:events";
-import { bridgeRequestSchema, checkpointRequestSchema, restoreRequestSchema } from "./contracts.ts";
+import {
+  bridgeRequestSchema,
+  browserProfileCaptureRequestSchema,
+  browserProfileResetRequestSchema,
+  browserProfileRestoreRequestSchema,
+  checkpointRequestSchema,
+  restoreRequestSchema,
+} from "./contracts.ts";
 import type { SandboxProvider } from "./modal-provider.ts";
 import { relayChatGPTResponse } from "./chatgpt-relay.ts";
 
@@ -31,7 +38,15 @@ export function createBridgeServer(
     response.setHeader("Content-Type", "application/json");
     if (
       request.method !== "POST" ||
-      !["/workspace", "/checkpoint", "/restore", "/chatgpt/responses"].includes(request.url || "")
+      ![
+        "/workspace",
+        "/checkpoint",
+        "/restore",
+        "/browser/capture",
+        "/browser/restore",
+        "/browser/reset",
+        "/chatgpt/responses",
+      ].includes(request.url || "")
     ) {
       response.writeHead(404).end('{"error":"Not found"}');
       return;
@@ -57,6 +72,21 @@ export function createBridgeServer(
         }
         const restore = provider.restore.bind(provider);
         await run(parsed.data.name, () => restore(parsed.data, requestBody(request)));
+        response.end('{"restored":true}');
+        return;
+      }
+      if (request.url === "/browser/restore") {
+        if (!provider.restoreBrowser) throw new Error("Browser profile restore unavailable");
+        const header = request.headers["x-sparkles-browser-profile"];
+        const parsed = browserProfileRestoreRequestSchema.safeParse(
+          JSON.parse(decodeURIComponent(String(header))),
+        );
+        if (!parsed.success) {
+          response.writeHead(400).end('{"error":"Invalid browser profile restore request"}');
+          return;
+        }
+        const restoreBrowser = provider.restoreBrowser.bind(provider);
+        await run(parsed.data.name, () => restoreBrowser(parsed.data, requestBody(request)));
         response.end('{"restored":true}');
         return;
       }
@@ -104,6 +134,60 @@ export function createBridgeServer(
             reader.releaseLock();
           }
         });
+        return;
+      }
+      if (request.url === "/browser/capture") {
+        const parsed = browserProfileCaptureRequestSchema.safeParse(JSON.parse(body));
+        if (!parsed.success) {
+          response.writeHead(400).end('{"error":"Invalid browser profile capture request"}');
+          return;
+        }
+        if (!provider.captureBrowser) throw new Error("Browser profile capture unavailable");
+        const captureBrowser = provider.captureBrowser.bind(provider);
+        await run(parsed.data.name, async () => {
+          const archive = await captureBrowser(parsed.data);
+          if (!archive) {
+            response.writeHead(204).end();
+            return;
+          }
+          response.setHeader("Content-Type", "application/gzip");
+          response.setHeader("Content-Length", String(archive.metadata.size));
+          response.setHeader(
+            "X-Sparkles-Browser-Profile",
+            encodeURIComponent(JSON.stringify(archive.metadata)),
+          );
+          const reader = archive.body.getReader();
+          const abort = new AbortController();
+          const onClose = () => {
+            abort.abort();
+            void reader.cancel().catch(() => {});
+          };
+          response.once("close", onClose);
+          try {
+            while (true) {
+              const next = await reader.read();
+              if (next.done) break;
+              if (!response.write(next.value))
+                await once(response, "drain", { signal: abort.signal });
+            }
+            response.end();
+          } finally {
+            response.off("close", onClose);
+            reader.releaseLock();
+          }
+        });
+        return;
+      }
+      if (request.url === "/browser/reset") {
+        const parsed = browserProfileResetRequestSchema.safeParse(JSON.parse(body));
+        if (!parsed.success) {
+          response.writeHead(400).end('{"error":"Invalid browser profile reset request"}');
+          return;
+        }
+        if (!provider.resetBrowser) throw new Error("Browser profile reset unavailable");
+        const resetBrowser = provider.resetBrowser.bind(provider);
+        await run(parsed.data.name, () => resetBrowser(parsed.data));
+        response.end('{"reset":true}');
         return;
       }
       const parsed = bridgeRequestSchema.safeParse(JSON.parse(body));

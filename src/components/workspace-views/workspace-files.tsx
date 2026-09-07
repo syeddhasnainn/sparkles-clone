@@ -33,20 +33,23 @@ export function WorkspaceFiles({ taskId }: { taskId: string }) {
   useEffect(() => {
     let cancelled = false;
     let loading = false;
-    const refresh = async (initial = false) => {
+    const refresh = (initial = false) => {
       if (loading || (!initial && document.hidden)) return;
       loading = true;
-      try {
-        const next = await requestView(taskId, { kind: "files", scope, base });
-        if (!cancelled && next.kind === "files") {
-          setFiles(next);
-          setError(null);
-        }
-      } catch (error) {
-        if (!cancelled) setError(error instanceof Error ? error.message : "Could not load files.");
-      } finally {
-        loading = false;
-      }
+      void requestView(taskId, { kind: "files", scope, base })
+        .then((next) => {
+          if (!cancelled && next.kind === "files") {
+            setFiles(next);
+            setError(null);
+          }
+        })
+        .catch((error) => {
+          if (!cancelled)
+            setError(error instanceof Error ? error.message : "Could not load files.");
+        })
+        .finally(() => {
+          loading = false;
+        });
     };
     void refresh(true);
     const interval = setInterval(() => void refresh(), 8000);
@@ -116,31 +119,14 @@ export function WorkspaceFiles({ taskId }: { taskId: string }) {
       )}
       {scope === "changed" ? (
         <>
-          <div className="workspace-changes-summary">
-            <span>
-              {files?.files.length ?? 0} {files?.files.length === 1 ? "file" : "files"}
-            </span>
-            <span className="changes-additions" title="? means some line counts are unavailable">
-              +
-              {additions?.some((count) => count === undefined)
-                ? "?"
-                : (additions?.reduce<number>((sum, count) => sum + (count ?? 0), 0) ?? 0)}
-            </span>
-            <span className="changes-deletions">
-              −
-              {files?.files.some((item) => item.deletions === null)
-                ? "?"
-                : (files?.files.reduce((sum, item) => sum + (item.deletions ?? 0), 0) ?? 0)}
-            </span>
-            <div className="workspace-segments">
-              <button aria-pressed={split} onClick={() => setSplit((value) => !value)}>
-                Split
-              </button>
-              <button onClick={() => setCollapsed((value) => !value)}>
-                {collapsed ? "Expand all" : "Collapse all"}
-              </button>
-            </div>
-          </div>
+          <ChangesSummary
+            files={files}
+            additions={additions}
+            split={split}
+            collapsed={collapsed}
+            onToggleSplit={() => setSplit((value) => !value)}
+            onToggleCollapsed={() => setCollapsed((value) => !value)}
+          />
           {files ? (
             <WorkspaceChanges
               taskId={taskId}
@@ -155,50 +141,113 @@ export function WorkspaceFiles({ taskId }: { taskId: string }) {
           )}
         </>
       ) : (
-        <div className="workspace-file-layout">
-          <nav className="workspace-file-list" aria-label="Repository files">
-            {files?.files.map((item) => (
-              <button
-                key={item.path}
-                aria-current={active === item.path ? "true" : undefined}
-                title={item.path}
-                onClick={() => setSelected(item.path)}
-              >
-                <AppIcon icon={File01Icon} size={14} />
-                <span>{item.path}</span>
-                <small
-                  className={`file-status file-status-${item.status}`}
-                  aria-label={item.status}
-                >
-                  {item.status === "added"
-                    ? "+"
-                    : item.status === "deleted"
-                      ? "−"
-                      : item.status === "modified"
-                        ? "M"
-                        : ""}
-                </small>
-              </button>
-            ))}
-            {!files && !error && <p>Loading files…</p>}
-            {files?.files.length === 0 && <p>No files found.</p>}
-            {files?.truncated && <p>Showing the first 2,000 files.</p>}
-          </nav>
-          <div className="workspace-file-content">
-            {active && file?.path === active ? (
-              <Suspense fallback={<p className="workspace-file-placeholder">Loading viewer…</p>}>
-                <FileViewer file={file} />
-              </Suspense>
-            ) : (
-              <div className="workspace-view-empty">
-                <AppIcon icon={File01Icon} size={28} />
-                <h3>{active ? "Loading file…" : "Repository files"}</h3>
-                <p>{active ? active : "Changes will appear as your task progresses."}</p>
-              </div>
-            )}
-          </div>
-        </div>
+        <RepositoryFiles
+          files={files}
+          active={active}
+          file={file}
+          error={error}
+          onSelect={setSelected}
+        />
       )}
+    </div>
+  );
+}
+
+function ChangesSummary({
+  files,
+  additions,
+  split,
+  collapsed,
+  onToggleSplit,
+  onToggleCollapsed,
+}: {
+  files: FileList | null;
+  additions: (number | undefined)[] | undefined;
+  split: boolean;
+  collapsed: boolean;
+  onToggleSplit: () => void;
+  onToggleCollapsed: () => void;
+}) {
+  return (
+    <div className="workspace-changes-summary">
+      <span>
+        {files?.files.length ?? 0} {files?.files.length === 1 ? "file" : "files"}
+      </span>
+      <span className="changes-additions" title="? means some line counts are unavailable">
+        +
+        {additions?.some((count) => count === undefined)
+          ? "?"
+          : (additions?.reduce<number>((sum, count) => sum + (count ?? 0), 0) ?? 0)}
+      </span>
+      <span className="changes-deletions">
+        −
+        {files?.files.some((item) => item.deletions === null)
+          ? "?"
+          : (files?.files.reduce((sum, item) => sum + (item.deletions ?? 0), 0) ?? 0)}
+      </span>
+      <div className="workspace-segments">
+        <button aria-pressed={split} onClick={onToggleSplit}>
+          Split
+        </button>
+        <button onClick={onToggleCollapsed}>{collapsed ? "Expand all" : "Collapse all"}</button>
+      </div>
+    </div>
+  );
+}
+
+function RepositoryFiles({
+  files,
+  active,
+  file,
+  error,
+  onSelect,
+}: {
+  files: FileList | null;
+  active: string | null;
+  file: WorkspaceFile | null;
+  error: string | null;
+  onSelect: (path: string) => void;
+}) {
+  return (
+    <div className="workspace-file-layout">
+      <nav className="workspace-file-list" aria-label="Repository files">
+        {files?.files.map((item) => (
+          <button
+            key={item.path}
+            aria-current={active === item.path ? "true" : undefined}
+            title={item.path}
+            onClick={() => onSelect(item.path)}
+          >
+            <AppIcon icon={File01Icon} size={14} />
+            <span>{item.path}</span>
+            <small className={`file-status file-status-${item.status}`} aria-label={item.status}>
+              {item.status === "added"
+                ? "+"
+                : item.status === "deleted"
+                  ? "−"
+                  : item.status === "modified"
+                    ? "M"
+                    : ""}
+            </small>
+          </button>
+        ))}
+        {!files && !error && <p>Loading files…</p>}
+        {files?.files.length === 0 && <p>No files found.</p>}
+        {files?.truncated && <p>Showing the first 2,000 files.</p>}
+      </nav>
+      <div className="workspace-file-content">
+        {active && file?.path === active ? (
+          <Suspense fallback={<p className="workspace-file-placeholder">Loading viewer…</p>}>
+            <FileViewer file={file} />
+          </Suspense>
+        ) : (
+          <div className="workspace-view-empty">
+            <AppIcon icon={File01Icon} size={28} />
+            <h3>{active ? "Loading file…" : "Repository files"}</h3>
+            <p>{active ? active : "Changes will appear as your task progresses."}</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
