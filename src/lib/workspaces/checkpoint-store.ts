@@ -11,16 +11,20 @@ export function createCheckpointStore(bucket: R2Bucket): CheckpointStore {
   return {
     async put(owner, archive) {
       const key = `tasks/${owner.taskId}/${archive.metadata.id}.tar.gz`;
+      const fixed = new FixedLengthStream(archive.metadata.size);
       // R2 validates the digest before exposing the completed object. The DB pointer is saved later.
-      await bucket.put(key, archive.body, {
-        sha256: archive.metadata.sha256,
-        httpMetadata: { contentType: "application/gzip" },
-        customMetadata: {
-          taskId: owner.taskId,
-          userId: owner.userId,
-          checkpoint: JSON.stringify(archive.metadata),
-        },
-      });
+      await Promise.all([
+        archive.body.pipeTo(fixed.writable),
+        bucket.put(key, fixed.readable, {
+          sha256: archive.metadata.sha256,
+          httpMetadata: { contentType: "application/gzip" },
+          customMetadata: {
+            taskId: owner.taskId,
+            userId: owner.userId,
+            checkpoint: JSON.stringify(archive.metadata),
+          },
+        }),
+      ]);
       return { key, metadata: archive.metadata };
     },
     async get(owner, checkpoint) {

@@ -1,5 +1,7 @@
 import { afterAll, describe, expect, it } from "vitest";
 import { Miniflare, convertV4MiniflareOptions } from "miniflare";
+import { build } from "vite";
+import { z } from "zod";
 import { createCheckpointStore } from "./checkpoint-store";
 
 const runtime = new Miniflare(
@@ -14,6 +16,45 @@ const { CHECKPOINTS: bucket } = await runtime.getBindings<{ CHECKPOINTS: R2Bucke
 const store = createCheckpointStore(bucket);
 const owner = { taskId: "task-a", userId: "user-a", runId: "run-a" };
 afterAll(() => runtime.dispose());
+
+describe("checkpoint uploads in Workers", () => {
+  it("saves unknown-length streams and rejects incomplete or corrupt archives", async () => {
+    const output = await build({
+      configFile: false,
+      logLevel: "silent",
+      build: {
+        ssr: new URL("./__tests__/checkpoint-worker.ts", import.meta.url).pathname,
+        write: false,
+        minify: false,
+        target: "esnext",
+      },
+    });
+    const bundle = z.object({ output: z.array(z.object({ code: z.string() })) }).parse(output);
+    const worker = new Miniflare(
+      convertV4MiniflareOptions({
+        modules: true,
+        script: bundle.output[0].code,
+        compatibilityDate: "2026-09-06",
+        r2Buckets: ["CHECKPOINTS"],
+      }),
+    );
+
+    try {
+      const response = await worker.dispatchFetch("http://checkpoint.test/valid");
+      expect(response.status, await response.clone().text()).toBe(200);
+      expect(await response.text()).toBe("saved checkpoint");
+      const { CHECKPOINTS: objects } = await worker.getBindings<{ CHECKPOINTS: R2Bucket }>();
+
+      for (const mode of ["truncated", "corrupt"]) {
+        const rejected = await worker.dispatchFetch(`http://checkpoint.test/${mode}`);
+        expect(rejected.status).toBe(500);
+        expect(await objects.get(`tasks/upload-task/${mode}.tar.gz`)).toBeNull();
+      }
+    } finally {
+      await worker.dispose();
+    }
+  }, 30000);
+});
 
 describe("checkpoint object ownership", () => {
   it("validates the object owner as well as the task key before restoring", async () => {
