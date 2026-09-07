@@ -1,5 +1,5 @@
-// OpenAI Codex 0.153.3 bundled catalog; only models marked visible.
-// https://github.com/openai/codex/blob/rust-v0.153.3/codex-rs/models-manager/models.json
+// OpenAI Codex catalog, verified September 8, 2026; only models marked visible.
+// https://github.com/openai/codex/blob/main/codex-rs/models-manager/models.json
 import type { ReasoningEffort } from "../../../bridge/agent-selection";
 export const bundledChatGPTModels: {
   id: string;
@@ -7,6 +7,12 @@ export const bundledChatGPTModels: {
   contextWindow: number;
   reasoningEfforts: ReasoningEffort[];
 }[] = [
+  {
+    id: "gpt-6-astra",
+    name: "GPT-6-Astra",
+    contextWindow: 272000,
+    reasoningEfforts: ["low", "medium", "high", "xhigh", "max", "ultra"],
+  },
   {
     id: "gpt-5.6-sol",
     name: "GPT-5.6-Sol",
