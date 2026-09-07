@@ -29,9 +29,11 @@ function harness() {
     beginRun: async (owner) => {
       histories.get(owner.taskId)!.status = "starting";
     },
-    read: async (owner, cursor) => {
+    read: async (owner, cursor, options) => {
       const state = histories.get(owner.taskId)!;
-      const events = state.events.filter((event) => event.id > cursor);
+      const events = state.events
+        .filter((event) => event.id > cursor && event.id <= state.cursor)
+        .slice(0, options?.all ? undefined : 100);
       return {
         ...state,
         events,
@@ -165,6 +167,23 @@ function input(): CreateWorkspace {
 }
 
 describe("workspace lifecycle", () => {
+  it("loads the complete saved conversation without waiting for client polling", async () => {
+    const { controller, histories, dependencies } = harness();
+    const workspace = await controller.start("user", input());
+    const events = Array.from({ length: 2501 }, (_, index) => ({
+      id: index + 1,
+      type: "user",
+      data: { text: `Message ${index + 1}` },
+    }));
+    histories.set(workspace.id, { status: "idle", events, cursor: 2501, head: 2501 });
+    const read = vi.spyOn(dependencies.sessions, "read");
+    const conversation = await controller.conversation(workspace.id);
+    expect(conversation.events).toEqual(events);
+    expect(conversation.cursor).toBe(2501);
+    expect(read).toHaveBeenCalledTimes(1);
+    expect(read.mock.calls[0].slice(1)).toEqual([0, { all: true }]);
+  });
+
   it("recovers a missing alarm and reconciles expired ready tasks when listing", async () => {
     const { controller, storage, records } = harness();
     const workspace = await controller.start("user", input());

@@ -59,6 +59,9 @@ export class WorkspaceManager extends DurableObject<Env> {
   agent(id: string, command: AgentCommand) {
     return this.controller.agent(id, command);
   }
+  conversation(id: string) {
+    return this.controller.conversation(id);
+  }
   view(id: string, command: WorkspaceViewCommand, parentOrigin: string) {
     return this.controller.view(id, command, parentOrigin);
   }

@@ -34,7 +34,8 @@ const clearCloudBrowserSessionsSchema = z.object({
 
 export const listWorkspaces = createServerFn({ method: "GET" }).handler(async () => {
   const { userId } = await requireGitHubUser();
-  return { configured: configured(), workspaces: await env.WORKSPACES.getByName(userId).list() };
+  const workspaces = await env.WORKSPACES.getByName(userId).list();
+  return { configured: configured(), workspaces: [...workspaces] };
 });
 
 export const getCloudBrowserSessions = createServerFn({ method: "GET" }).handler(async () => {
@@ -75,6 +76,13 @@ export const agentCommand = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { userId } = await requireGitHubUser();
     return JSON.stringify(await env.WORKSPACES.getByName(userId).agent(data.id, data.command));
+  });
+
+export const getTaskConversation = createServerFn({ method: "GET" })
+  .validator(z.object({ id: z.uuid() }))
+  .handler(async ({ data }) => {
+    const { userId } = await requireGitHubUser();
+    return JSON.stringify(await env.WORKSPACES.getByName(userId).conversation(data.id));
   });
 
 export const resumeWorkspace = createServerFn({ method: "POST" })

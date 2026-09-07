@@ -23,6 +23,7 @@ function toolKind(kind: string) {
 }
 export function ToolTimeline({ calls }: { calls: ToolCall[] }) {
   const [open, setOpen] = useState(false);
+  const [visited, setVisited] = useState(false);
   const panelId = useId();
   const active = calls.some((call) => ["pending", "in_progress"].includes(call.status));
   const failures = calls.filter((call) => ["failed", "interrupted"].includes(call.status)).length;
@@ -48,7 +49,10 @@ export function ToolTimeline({ calls }: { calls: ToolCall[] }) {
         type="button"
         aria-expanded={open}
         aria-controls={panelId}
-        onClick={() => setOpen(!open)}
+        onClick={() => {
+          setVisited(true);
+          setOpen(!open);
+        }}
       >
         <AppIcon icon={groupIcon} size={17} />
         <span>{summary}</span>
@@ -62,9 +66,7 @@ export function ToolTimeline({ calls }: { calls: ToolCall[] }) {
       <div className="tool-chips-collapse" data-open={open} id={panelId} inert={!open}>
         <div className="tool-chips-content">
           <ol className="tool-chips-rows">
-            {calls.map((call) => (
-              <ToolRow key={call.id} call={call} />
-            ))}
+            {visited && calls.map((call) => <ToolRow key={call.id} call={call} />)}
           </ol>
         </div>
       </div>
@@ -82,6 +84,7 @@ const statusLabels = new Map([
 
 function ToolRow({ call }: { call: ToolCall }) {
   const [open, setOpen] = useState(false);
+  const [visited, setVisited] = useState(false);
   const panelId = useId();
   const { icon, label } = toolKind(call.kind);
   const failed = ["failed", "interrupted"].includes(call.status);
@@ -96,7 +99,10 @@ function ToolRow({ call }: { call: ToolCall }) {
         type="button"
         aria-expanded={open}
         aria-controls={panelId}
-        onClick={() => setOpen(!open)}
+        onClick={() => {
+          setVisited(true);
+          setOpen(!open);
+        }}
       >
         <span className="tool-chip-icon">
           <AppIcon icon={icon} size={17} />
@@ -111,9 +117,7 @@ function ToolRow({ call }: { call: ToolCall }) {
         <span className="sr-only">{statusLabels.get(call.status) ?? call.status}</span>
       </button>
       <div className="tool-chips-collapse" data-open={open} id={panelId} inert={!open}>
-        <div className="tool-chip-detail-clip">
-          <ToolDetails call={call} />
-        </div>
+        <div className="tool-chip-detail-clip">{visited && <ToolDetails call={call} />}</div>
       </div>
     </li>
   );

@@ -1,6 +1,7 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { Dashboard } from "@/components/dashboard/dashboard";
 import { getCurrentUser } from "@/lib/auth";
+import { listWorkspaces } from "@/lib/workspaces/functions";
 
 export const Route = createFileRoute("/app")({
   beforeLoad: async ({ location }) => {
@@ -12,5 +13,6 @@ export const Route = createFileRoute("/app")({
 
     return { user };
   },
+  loader: () => listWorkspaces(),
   component: Dashboard,
 });

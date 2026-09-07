@@ -277,6 +277,13 @@ export class WorkspaceController {
       await storage.setAlarm(Date.now() + 100);
     });
   }
+  async conversation(id: string): Promise<AgentSnapshot> {
+    const record = await this.record(id);
+    const sessionOwner = owner(record);
+    await this.dependencies.sessions.ensure(sessionOwner);
+    return this.dependencies.sessions.read(sessionOwner, 0, { all: true });
+  }
+
   async agent(id: string, command: AgentCommand) {
     let record = await this.record(id);
     await this.dependencies.sessions.ensure(owner(record));
