@@ -50,7 +50,7 @@ export function TaskComposer() {
       });
       request.current = null;
       setTask("");
-      await workspaces.refresh();
+      void workspaces.refresh();
       await navigate({ to: "/app/tasks/$taskId", params: { taskId: created.id } });
     } catch (caught) {
       setError(

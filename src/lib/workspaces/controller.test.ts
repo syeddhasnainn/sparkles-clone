@@ -387,3 +387,68 @@ describe("workspace lifecycle", () => {
     expect((await controller.list())[0].status).toBe("failed");
   });
 });
+
+it("checkpoints and stops a workspace after one minute idle", async () => {
+  const { controller, records, execute } = harness();
+  const task = await controller.start("user", input());
+  await controller.alarm();
+  const record = records.get(`workspace:${task.id}`)!;
+  record.agentStarted = true;
+  record.idleSince = Date.now() - 60_001;
+  record.retryAt = 0;
+  await controller.alarm();
+  expect(records.get(`workspace:${task.id}`)?.status).toBe("stopping");
+  await controller.alarm();
+  expect(execute).toHaveBeenCalledWith({ action: "stop", name: `sparkles-${task.id}` });
+  expect(records.get(`workspace:${task.id}`)?.canResume).toBe(true);
+});
+
+it("keeps an active agent alive beyond the idle timeout", async () => {
+  const { controller, records, execute } = harness();
+  const task = await controller.start("user", input());
+  await controller.alarm();
+  const record = records.get(`workspace:${task.id}`)!;
+  record.agentStarted = true;
+  record.idleSince = Date.now() - 60_001;
+  record.retryAt = 0;
+  execute.mockResolvedValue({
+    running: true,
+    sandboxId: "sb-test",
+    commit: null,
+    agent: { status: "running", events: [], cursor: 0, head: 0 },
+  });
+  await controller.alarm();
+  expect(records.get(`workspace:${task.id}`)?.status).toBe("ready");
+  expect(records.get(`workspace:${task.id}`)?.idleSince).toBeUndefined();
+});
+
+it("automatically restores a stopped workspace and delivers its queued prompt once", async () => {
+  const { controller, records, execute } = harness();
+  const task = await controller.start("user", input());
+  await controller.alarm();
+  records.get(`workspace:${task.id}`)!.retryAt = 0;
+  await controller.alarm();
+  await controller.stop(task.id);
+  await controller.alarm();
+  expect(records.get(`workspace:${task.id}`)?.status).toBe("stopped");
+  const command = {
+    kind: "prompt" as const,
+    requestId: crypto.randomUUID(),
+    prompt: "Continue please",
+  };
+  await controller.agent(task.id, command);
+  expect(records.get(`workspace:${task.id}`)?.status).toBe("provisioning");
+  expect(records.get(`workspace:${task.id}`)?.pendingPrompt).toEqual(command);
+  await controller.alarm();
+  records.get(`workspace:${task.id}`)!.retryAt = 0;
+  await controller.alarm();
+  expect(records.get(`workspace:${task.id}`)?.pendingPrompt).toBeUndefined();
+  expect(
+    execute.mock.calls.filter(
+      ([request]) =>
+        request.action === "agent" &&
+        request.command.kind === "prompt" &&
+        request.command.requestId === command.requestId,
+    ),
+  ).toHaveLength(1);
+});

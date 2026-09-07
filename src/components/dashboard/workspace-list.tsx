@@ -3,7 +3,6 @@ import type { Workspace } from "../../../bridge/contracts";
 
 interface WorkspaceListProps {
   workspaces: Workspace[];
-  onStop: (id: string) => Promise<void>;
 }
 
 const labels = {
@@ -14,7 +13,7 @@ const labels = {
   failed: "Setup failed",
 };
 
-export function WorkspaceList({ workspaces, onStop }: WorkspaceListProps) {
+export function WorkspaceList({ workspaces }: WorkspaceListProps) {
   if (!workspaces.length) return null;
 
   return (
@@ -48,15 +47,6 @@ export function WorkspaceList({ workspaces, onStop }: WorkspaceListProps) {
             <p className="workspace-detail" role="status">
               {workspace.error}
             </p>
-          )}
-          {["ready", "provisioning"].includes(workspace.status) && (
-            <button
-              className="workspace-stop"
-              type="button"
-              onClick={() => void onStop(workspace.id)}
-            >
-              Stop workspace
-            </button>
           )}
         </article>
       ))}

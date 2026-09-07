@@ -11,6 +11,7 @@ describe("permission request details", () => {
       snapshot: null,
       error: null,
       sending: false,
+      awaitingPrompt: false,
       send: async () => true,
       events: [
         {
@@ -65,7 +66,14 @@ it("requires explicit submission and sends the original approval and option IDs"
   const send = vi.fn(async () => true);
   render(
     <Permissions
-      agent={{ events: [request(1)], snapshot: null, sending: false, error: null, send }}
+      agent={{
+        events: [request(1)],
+        snapshot: null,
+        sending: false,
+        awaitingPrompt: false,
+        error: null,
+        send,
+      }}
     />,
   );
   expect(screen.getByRole("button", { name: "Send" }).hasAttribute("disabled")).toBe(true);
@@ -89,6 +97,7 @@ it("shows one approval at a time and Skip does not grant or reject it", () => {
         events: [request(1), request(2)],
         snapshot: null,
         sending: false,
+        awaitingPrompt: false,
         error: null,
         send,
       }}
@@ -107,7 +116,14 @@ it("keeps a failed approval available for retry", async () => {
   const send = vi.fn(async () => false);
   render(
     <Permissions
-      agent={{ events: [request(1)], snapshot: null, sending: false, error: null, send }}
+      agent={{
+        events: [request(1)],
+        snapshot: null,
+        sending: false,
+        awaitingPrompt: false,
+        error: null,
+        send,
+      }}
     />,
   );
   fireEvent.click(screen.getByRole("radio", { name: "Reject" }));

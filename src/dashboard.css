@@ -1523,6 +1523,10 @@
   overflow-wrap: normal;
 }
 
+:root:not(.dark) .task-message-markdown [data-streamdown="inline-code"] {
+  background-color: #e7e7eb;
+}
+
 .composer-panel,
 .composer-menu {
   font-family: "Inter Variable", sans-serif;
@@ -1832,20 +1836,6 @@
   border-bottom: 0;
 }
 
-.composer-panel::before {
-  content: "";
-  display: block;
-  height: 34px;
-  margin: 0 28px;
-  border: 0;
-  border-radius: var(--radius) var(--radius) 0 0;
-  background: var(--composer-strip-background);
-}
-.composer-wrapper .composer-panel::before,
-.task-composer-dock .composer-panel::before {
-  display: none;
-}
-
 :root {
   --composer-strip-background: #ebebeb;
 }
@@ -1862,6 +1852,9 @@
   margin: 0 28px;
   border-radius: var(--radius) var(--radius) 0 0;
   background: var(--composer-strip-background);
+}
+.composer-top-strip:empty {
+  display: none;
 }
 .composer-top-strip .composer-availability {
   min-height: 34px;
@@ -2106,4 +2099,82 @@
 }
 .permission-mode-error {
   color: var(--destructive);
+}
+
+.task-loading {
+  display: flex;
+  width: fit-content;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 0;
+}
+
+.task-loading-grid {
+  display: grid;
+  flex-shrink: 0;
+  grid-template-columns: repeat(3, 4px);
+  gap: 1.5px;
+}
+
+.task-loading-pixel {
+  width: 4px;
+  height: 4px;
+  border-radius: 1px;
+  background: var(--foreground);
+  opacity: 0.15;
+  animation: task-pixel-on 650ms ease-in-out infinite;
+}
+
+.task-loading-label {
+  background-image: linear-gradient(
+    90deg,
+    var(--muted-foreground) 35%,
+    var(--foreground) 50%,
+    var(--muted-foreground) 65%
+  );
+  background-size: 200% 100%;
+  background-clip: text;
+  color: transparent;
+  font-size: 13px;
+  font-weight: 500;
+  animation: task-shimmer-text 1.4s linear infinite;
+}
+
+.task-loading-elapsed {
+  color: var(--muted-foreground);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes task-pixel-on {
+  0%,
+  65%,
+  100% {
+    opacity: 0.15;
+  }
+  30% {
+    opacity: 1;
+  }
+}
+
+@keyframes task-shimmer-text {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .task-loading-pixel,
+  .task-loading-label {
+    animation: none;
+  }
+
+  .task-loading-label {
+    background: none;
+    color: var(--muted-foreground);
+  }
 }

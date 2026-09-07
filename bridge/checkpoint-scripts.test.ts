@@ -57,6 +57,10 @@ async function fixture(agent = "opencode") {
     join(root, ".sparkles", agentPath, "auth.json"),
     "credentials-must-not-be-archived",
   );
+  await mkdir(join(root, ".sparkles", agentPath, ".tmp", "plugins"), { recursive: true });
+  await writeFile(join(root, ".sparkles", agentPath, ".tmp", "plugins", "catalog"), "temporary");
+  await mkdir(join(root, "repo", ".tmp"));
+  await writeFile(join(root, "repo", ".tmp", "user-work"), "preserve repository files");
   await python(
     "import os,subprocess,sqlite3;root=os.environ['SPARKLES_WORKSPACE_ROOT'];subprocess.run(['git','init','-q',root+'/repo'],check=True);db=sqlite3.connect(root+'/.sparkles/" +
       agentPath +
@@ -132,6 +136,12 @@ describe("workspace checkpoint archives", () => {
     );
     expect(session.trim()).toBe("session-test");
     await expect(readFile(join(restored, ".sparkles", "codex", "auth.json"))).rejects.toThrow();
+    await expect(
+      readFile(join(restored, ".sparkles", "codex", ".tmp", "plugins", "catalog")),
+    ).rejects.toThrow();
+    expect(await readFile(join(restored, "repo", ".tmp", "user-work"), "utf8")).toBe(
+      "preserve repository files",
+    );
   });
   it("rejects corrupt archives and refuses to overwrite an existing checkout", async () => {
     const saved = await fixture();

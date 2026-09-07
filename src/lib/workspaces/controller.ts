@@ -1,4 +1,8 @@
-import { checkpointIntervalMs, workspaceLifetimeMs } from "../../../bridge/contracts";
+import {
+  checkpointIntervalMs,
+  workspaceIdleTimeoutMs,
+  workspaceLifetimeMs,
+} from "../../../bridge/contracts";
 import { defaultAgentSelection } from "../../../bridge/agent-selection";
 import type { WorkspaceViewCommand } from "../../../bridge/workspace-view-contracts";
 import type {
@@ -23,6 +27,8 @@ export interface WorkspaceRecord extends Workspace {
   checkpointCursor?: number;
   restoreCheckpoint?: SavedCheckpoint;
   stopRequestedAt?: number;
+  idleSince?: number;
+  pendingPrompt?: Extract<AgentCommand, { kind: "prompt" }>;
 }
 
 function publicWorkspace(record: WorkspaceRecord): Workspace {
@@ -37,6 +43,8 @@ function publicWorkspace(record: WorkspaceRecord): Workspace {
     checkpointCursor: _checkpointCursor,
     restoreCheckpoint: _restoreCheckpoint,
     stopRequestedAt: _stopRequestedAt,
+    idleSince: _idleSince,
+    pendingPrompt: _pendingPrompt,
     ...workspace
   } = record;
   return workspace;
@@ -162,6 +170,7 @@ export class WorkspaceController {
         attempts: 0,
         retryAt: 0,
         stopRequestedAt: undefined,
+        idleSince: undefined,
         sandboxId: null,
       });
       await storage.setAlarm(Date.now() + 100);
@@ -175,11 +184,31 @@ export class WorkspaceController {
         await this.dependencies.sessions.finish(owner(record), record.status === "failed");
       return this.dependencies.sessions.read(owner(record), command.cursor);
     }
+    if (command.kind === "prompt" && record.status !== "ready") {
+      if (terminal(record)) {
+        await this.resume(id);
+        record = await this.record(id);
+      }
+      await this.storage.transaction(async (storage) => {
+        const current = await storage.get(`workspace:${id}`);
+        if (!current) throw new Error("Workspace not found.");
+        if (current.pendingPrompt && current.pendingPrompt.requestId !== command.requestId)
+          throw new Error("A message is already waiting for this workspace.");
+        await storage.put(`workspace:${id}`, {
+          ...current,
+          pendingPrompt: command,
+          idleSince: undefined,
+        });
+        await storage.setAlarm(Date.now() + 100);
+      });
+      return this.dependencies.sessions.read(owner(record), 0);
+    }
     await this.captures.get(owner(record).runId);
     record = await this.record(id);
     if (record.status !== "ready") throw new Error("Workspace is not ready.");
     if (command.kind === "prompt") {
       if (!record.agentStarted) throw new Error("The initial task is still starting.");
+      await this.patch(record, { idleSince: undefined });
       await this.dependencies.sessions.reservePrompt(owner(record), command);
     }
     const current = await this.record(id);
@@ -368,6 +397,46 @@ export class WorkspaceController {
       });
       return;
     }
+    if (record.pendingPrompt && snapshot.status === "idle" && record.agentStarted) {
+      await this.dependencies.sessions.reservePrompt(owner(record), record.pendingPrompt);
+      await this.dependencies.provider(record.id).execute({
+        action: "agent",
+        name: sandboxName(record),
+        command: record.pendingPrompt,
+      });
+      await this.patch(record, {
+        pendingPrompt: undefined,
+        idleSince: undefined,
+        phase: "task",
+        retryAt: Date.now() + 1000,
+      });
+      return;
+    }
+    if (record.agentStarted && ["idle", "failed", "interrupted"].includes(snapshot.status)) {
+      if (record.idleSince === undefined) {
+        await this.patch(record, { idleSince: Date.now() });
+      } else if (Date.now() - record.idleSince >= workspaceIdleTimeoutMs) {
+        await this.storage.transaction(async (storage) => {
+          const current = await storage.get(`workspace:${record.id}`);
+          if (
+            current?.status !== "ready" ||
+            owner(current).runId !== owner(record).runId ||
+            current.idleSince !== record.idleSince
+          )
+            return;
+          await storage.put(`workspace:${record.id}`, {
+            ...current,
+            status: "stopping",
+            terminalStatus: "stopped",
+            stopRequestedAt: Date.now(),
+            retryAt: 0,
+          });
+        });
+        return;
+      }
+    } else if (record.idleSince !== undefined) {
+      await this.patch(record, { idleSince: undefined });
+    }
     if (!record.agentStarted && snapshot.status === "idle") {
       if (!record.checkpointAt) await this.capture(record);
       if ((await this.record(record.id)).status === "stopping") return;
@@ -434,7 +503,10 @@ export class WorkspaceController {
     await this.storage.setAlarm(Date.now() + 2000);
     for (const saved of (await this.storage.list()).values()) {
       let record = await this.record(saved.id);
-      if (terminal(record)) continue;
+      if (terminal(record)) {
+        if (record.pendingPrompt && record.status === "stopped") await this.resume(record.id);
+        continue;
+      }
       if (
         record.retryAt > Date.now() &&
         !(record.status === "ready" && record.expiresAt <= Date.now())
@@ -469,7 +541,9 @@ export class WorkspaceController {
       }
     }
     await this.storage.transaction(async (storage) => {
-      const active = [...(await storage.list()).values()].filter((record) => !terminal(record));
+      const active = [...(await storage.list()).values()].filter(
+        (record) => !terminal(record) || (record.status === "stopped" && record.pendingPrompt),
+      );
       if (active.length)
         await storage.setAlarm(
           Math.max(

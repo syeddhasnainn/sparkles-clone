@@ -19,6 +19,8 @@ try:
     if source.exists():
         for directory, dirs, files in os.walk(source, followlinks=False):
             dirs[:] = [d for d in dirs if d not in ('log', 'logs', 'cache') and not pathlib.Path(directory, d).is_symlink()]
+            if agent_kind == 'codex' and pathlib.Path(directory) == source:
+                dirs[:] = [d for d in dirs if d != '.tmp']
             for name in files:
                 origin = pathlib.Path(directory, name)
                 if origin.is_symlink() or name in ('auth.json', 'config.toml', 'log.json', 'history.jsonl') or name.endswith(('-wal', '-shm', '.lock')):
