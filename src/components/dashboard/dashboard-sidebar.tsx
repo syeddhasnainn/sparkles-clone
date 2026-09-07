@@ -1,7 +1,6 @@
 import { Tooltip, TooltipTrigger, TooltipContent } from "../ui/tooltip";
 import { AppIcon } from "../ui/app-icon";
 import { Link } from "@tanstack/react-router";
-import Eye from "@hugeicons/core-free-icons/ViewIcon";
 import FolderPlus from "@hugeicons/core-free-icons/FolderAddIcon";
 import Plus from "@hugeicons/core-free-icons/Add01Icon";
 import { useWorkspaces } from "@/hooks/use-workspaces";
@@ -117,13 +116,6 @@ export function DashboardSidebar({
                   : "Loading chats…"}
             </p>
           )}
-        </section>
-        <section className="team-section">
-          <h2 className="section-label">
-            Team
-            <AppIcon icon={Eye} size={14} />
-          </h2>
-          <div className="empty-folder">Drop a chat here to share it</div>
         </section>
       </div>
       <div className="sidebar-footer">

@@ -253,17 +253,6 @@
   transform: rotate(-90deg);
 }
 
-.empty-folder {
-  border: 1px dashed var(--border);
-  border-radius: var(--radius);
-  height: 52px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--muted-foreground);
-  font-size: 12px;
-}
-
 .section-label {
   font-size: 12px;
   font-weight: 400;
@@ -409,14 +398,6 @@
   align-self: flex-start;
   margin-top: 12px;
   color: var(--muted-foreground);
-}
-
-.team-section {
-  margin-top: 4px;
-}
-
-.team-section .empty-folder {
-  margin: 0 8px;
 }
 
 .sidebar-footer {
@@ -991,10 +972,6 @@
   .composer-options {
     gap: 1px;
   }
-}
-
-.conversation-section > .empty-folder {
-  margin: 0 8px;
 }
 
 .workspace-note,
