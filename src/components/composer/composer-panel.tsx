@@ -7,7 +7,6 @@ import type { AgentSelection } from "../../../bridge/agent-selection";
 import { AppIcon } from "../ui/app-icon";
 import { useId, useRef, useState, type ReactNode } from "react";
 import ArrowUp from "@hugeicons/core-free-icons/ArrowUp02Icon";
-import Circle from "@hugeicons/core-free-icons/CircleIcon";
 import FileCode from "@hugeicons/core-free-icons/DocumentCodeIcon";
 import FileText from "@hugeicons/core-free-icons/File01Icon";
 import Folder from "@hugeicons/core-free-icons/Folder01Icon";
@@ -299,18 +298,6 @@ export function ComposerPanel({
             </span>
           )}
         </div>
-        <ComposerMenu
-          label="Context usage"
-          className="composer-usage"
-          trigger={
-            <>
-              <AppIcon icon={Circle} size={16} />
-              <span>—</span>
-            </>
-          }
-        >
-          <p className="composer-menu-note">Context usage is not reported by this agent yet.</p>
-        </ComposerMenu>
       </div>
       {attachments.length > 0 && (
         <p className="composer-file-notice" id={noticeId} role="status">

@@ -12,7 +12,7 @@
   "vars": {
     "MODEL_GATEWAY_URL": "https://sparkles-demo.syedhasnainmurtaza.workers.dev",
     "MODAL_APP_NAME": "sparkles-workspaces",
-    "AGENT_MODEL": "openrouter/anthropic/claude-sonnet-4",
+    "AGENT_MODEL": "openrouter/z-ai/glm-5.3-flash",
   },
   "containers": [
     {

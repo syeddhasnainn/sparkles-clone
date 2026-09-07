@@ -56,7 +56,7 @@ export async function issueModelGateway(
   const model =
     selection.provider === "chatgpt"
       ? `openai/${selection.model}`
-      : configuredModel || "openrouter/anthropic/claude-sonnet-4";
+      : configuredModel || "openrouter/z-ai/glm-5.3-flash";
   let connectionId: string | null = null;
   if (selection.provider === "chatgpt") {
     if (!requireConnection) throw new Error("ChatGPT connections are unavailable.");
