@@ -14,13 +14,25 @@ export function Followup({
 }) {
   const [prompt, setPrompt] = useState("");
   const submission = useRef<{ requestId: string; prompt: string } | null>(null);
+  const canSend =
+    Boolean(workspace) &&
+    !agent.sending &&
+    !agent.awaitingPrompt &&
+    (enabled
+      ? agent.snapshot?.status === "idle"
+      : workspace?.status === "provisioning" ||
+        workspace?.status === "stopping" ||
+        workspace?.canResume);
   const submit = async () => {
-    if (!enabled || agent.sending || !prompt.trim() || agent.snapshot?.status !== "idle") return;
+    if (!canSend || !prompt.trim()) return;
     if (submission.current?.prompt !== prompt)
       submission.current = { requestId: crypto.randomUUID(), prompt };
-    if (await agent.send({ kind: "prompt", ...submission.current })) {
-      setPrompt("");
+    const submitted = submission.current;
+    setPrompt("");
+    if (await agent.send({ kind: "prompt", ...submitted })) {
       submission.current = null;
+    } else {
+      setPrompt((current) => current || submitted.prompt);
     }
   };
   return (
@@ -33,9 +45,9 @@ export function Followup({
       }
       permissionModeUnavailableReason={
         !enabled
-          ? "Resume the workspace to change permissions."
+          ? "Send a message to wake the workspace before changing permissions."
           : !agent.snapshot?.permissionModes
-            ? "Permission controls are not loaded. Stop and resume older workspaces to enable them."
+            ? "Permission controls are not available yet."
             : undefined
       }
       value={prompt}
@@ -43,9 +55,7 @@ export function Followup({
       onSubmit={() => void submit()}
       label="Follow-up prompt"
       sendLabel="Send"
-      sendDisabled={
-        !enabled || agent.sending || !prompt.trim() || agent.snapshot?.status !== "idle"
-      }
+      sendDisabled={!canSend || !prompt.trim()}
       busy={agent.sending}
       running={enabled && agent.snapshot?.status === "running"}
       onStop={() => void agent.send({ kind: "cancel" })}

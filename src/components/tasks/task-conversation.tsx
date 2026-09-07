@@ -2,6 +2,7 @@ import { agentName } from "../../../bridge/agent-selection";
 import { Streamdown } from "streamdown";
 import { code } from "@streamdown/code";
 import { z } from "zod";
+import { LoadingState } from "./loading-state";
 import { ToolTimeline } from "./task-tools";
 import { toolCalls } from "./tool-activity";
 import type { ToolCall } from "./tool-activity";
@@ -75,13 +76,35 @@ export function Conversation({
   events,
   streaming = false,
   agentKind = "opencode",
+  initialPrompt,
+  preparationLabel,
 }: {
   events: Events;
   streaming?: boolean;
   agentKind?: "opencode" | "codex";
+  initialPrompt?: string;
+  preparationLabel?: string;
 }) {
+  const currentTurn = events.slice(
+    events.reduce((last, event, index) => (event.type === "user" ? index : last), -1) + 1,
+  );
+  const hasStarted = currentTurn.some(
+    (event) =>
+      event.type === "permission" ||
+      (event.type === "update" &&
+        (event.data.sessionUpdate === "tool_call" ||
+          event.data.sessionUpdate === "tool_call_update" ||
+          (event.data.sessionUpdate === "agent_message_chunk" &&
+            z.object({ text: z.string().min(1) }).safeParse(event.data.content).success))),
+  );
+
   return (
     <div className="task-messages">
+      {initialPrompt && !events.some((event) => event.type === "user") && (
+        <article className="task-message-user" aria-label="You">
+          <div className="task-message-text">{initialPrompt}</div>
+        </article>
+      )}
       {conversation(events).map((message) =>
         message.tools ? (
           <ToolTimeline key={message.id} calls={message.tools} />
@@ -136,6 +159,7 @@ export function Conversation({
           </article>
         ),
       )}
+      {(preparationLabel || streaming) && !hasStarted && <LoadingState label={preparationLabel} />}
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { agentRunnerSource } from "./agent-runner-source.ts";
 import { runnerRequest } from "./agent-transport.ts";
 import { workspaceView, revokeWorkspaceViews } from "./workspace-views.ts";
 import { createCheckpointScript, restoreCheckpointScript } from "./checkpoint-scripts.ts";
+import { transferCheckpoint } from "./checkpoint-transfer.ts";
 import { codexPolicyBuildCommand } from "./codex-policy.ts";
 import { checkpointMetadataSchema, agentSnapshotSchema } from "./contracts.ts";
 import type { CheckpointArchive, CheckpointRequest, RestoreRequest } from "./contracts.ts";
@@ -214,24 +215,7 @@ export class ModalProvider implements SandboxProvider {
         ["python3", "-c", restoreCheckpointScript, JSON.stringify(request)],
         { mode: "binary", timeoutMs: 240000 },
       );
-      const writer = process.stdin.getWriter();
-      const reader = body.getReader();
-      let received = 0;
-      try {
-        while (true) {
-          const next = await reader.read();
-          if (next.done) break;
-          received += next.value.byteLength;
-          if (received > request.checkpoint.size)
-            throw new Error("Checkpoint transfer exceeded its expected size.");
-          await writer.write(next.value);
-        }
-        await writer.close();
-      } catch (error) {
-        await writer.abort();
-        await reader.cancel();
-        throw error;
-      }
+      const received = await transferCheckpoint(body, process.stdin, request.checkpoint.size);
       // Decode the byte view itself; the SDK binary readText helper includes its backing buffer.
       const [output, code] = await Promise.all([
         new Response(process.stdout).text(),

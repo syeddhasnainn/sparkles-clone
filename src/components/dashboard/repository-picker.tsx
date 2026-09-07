@@ -68,22 +68,20 @@ export function RepositoryPicker({
         </span>
         <AppIcon icon={ChevronDown} className="size-3" />
       </Popover.Trigger>
-      <Popover.Portal>
+      <Popover.Portal keepMounted>
         <Popover.Positioner side="top" align="start" sideOffset={8} className="z-50">
           <Popover.Popup className="w-72 max-w-[calc(100vw-2rem)] max-h-[var(--available-height)] overflow-y-auto rounded-lg border border-border bg-popover p-1.5 text-popover-foreground shadow-lg outline-none">
             <Popover.Title className="px-2.5 py-2 text-xs font-medium text-muted-foreground">
               Repositories
             </Popover.Title>
-            {open && (
-              <RepositoryList
-                selected={selected}
-                installationUrl={connection.installationUrl!}
-                onSelect={(repo) => {
-                  onSelect(repo);
-                  setOpen(false);
-                }}
-              />
-            )}
+            <RepositoryList
+              selected={selected}
+              installationUrl={connection.installationUrl!}
+              onSelect={(repo) => {
+                onSelect(repo);
+                setOpen(false);
+              }}
+            />
           </Popover.Popup>
         </Popover.Positioner>
       </Popover.Portal>

@@ -8,13 +8,12 @@ import type { AgentSnapshot, Workspace } from "../../../bridge/contracts";
 import { TaskSetup } from "./task-setup";
 import { Conversation } from "./task-conversation";
 import { Permissions } from "./task-permissions";
-import { WorkspaceAction } from "./workspace-action";
 import { Followup } from "./task-followup";
 import { TaskWorkbench } from "../workspace-views/task-workbench";
 
 export function TaskPage({ taskId }: { taskId: string }) {
   const headerElement = useContext(TaskHeaderContext);
-  const { data, error, stop, resume } = useWorkspaces();
+  const { data, error } = useWorkspaces();
   const workspace = data?.workspaces.find((item) => item.id === taskId);
   const agent = useTaskAgent(taskId, workspace?.status === "ready");
   const title = workspace?.prompt || "Loading task…";
@@ -35,11 +34,6 @@ export function TaskPage({ taskId }: { taskId: string }) {
               <span className="sr-only" role="status">
                 {statusLabel(workspace, agent.snapshot)}
               </span>
-              <WorkspaceAction
-                workspace={workspace}
-                onStop={() => stop(taskId)}
-                onResume={() => resume(taskId)}
-              />
             </div>,
             headerElement,
           )}
@@ -51,7 +45,22 @@ export function TaskPage({ taskId }: { taskId: string }) {
             <Conversation
               agentKind={workspace?.selection?.agent}
               events={agent.events}
-              streaming={workspace?.status === "ready" && agent.snapshot?.status === "running"}
+              initialPrompt={workspace?.prompt}
+              preparationLabel={
+                workspace?.status === "provisioning"
+                  ? workspace.restoring
+                    ? "Restoring your workspace…"
+                    : "Preparing your workspace…"
+                  : workspace?.status === "ready" &&
+                      workspace.phase !== "task" &&
+                      agent.snapshot?.status !== "failed"
+                    ? "Starting the agent…"
+                    : undefined
+              }
+              streaming={
+                agent.awaitingPrompt ||
+                (workspace?.status === "ready" && agent.snapshot?.status === "running")
+              }
             />
             {workspace?.status === "ready" && <Permissions agent={agent} />}
           </div>
@@ -60,11 +69,6 @@ export function TaskPage({ taskId }: { taskId: string }) {
           <div className="task-composer-inner">
             {(workspace?.status !== "ready" || workspace.phase !== "task") && (
               <div className="composer-top-strip">
-                <ComposerAvailability
-                  workspace={workspace}
-                  onStop={() => stop(taskId)}
-                  onResume={() => resume(taskId)}
-                />
                 <TaskSetup
                   workspace={workspace}
                   started={agent.events.some((event) => event.type === "user")}
@@ -98,37 +102,4 @@ function statusLabel(workspace: Workspace | undefined, snapshot: AgentSnapshot |
   if (snapshot?.status === "failed")
     return `${agentName(workspace.selection?.agent)} stopped unexpectedly`;
   return `Starting ${agentName(workspace.selection?.agent)}…`;
-}
-
-function ComposerAvailability({
-  workspace,
-  onStop,
-  onResume,
-}: {
-  workspace?: Workspace;
-  onStop: () => Promise<void>;
-  onResume: () => Promise<void>;
-}) {
-  if (workspace?.status === "ready" || workspace?.status === "provisioning") return null;
-  const stopped = workspace?.status === "stopped" || workspace?.status === "failed";
-  let message = "You can draft a message while the workspace is getting ready.";
-  if (stopped)
-    message = workspace.canResume
-      ? "You can draft a message. Resume the workspace to send it."
-      : "You can draft a message, but this workspace cannot be resumed.";
-  if (workspace?.status === "stopping")
-    message = "Saving the workspace. You can keep drafting your message.";
-  return (
-    <div className="composer-availability">
-      <span>{message}</span>
-      {stopped && (
-        <WorkspaceAction
-          workspace={workspace}
-          onStop={onStop}
-          onResume={onResume}
-          showIcon={false}
-        />
-      )}
-    </div>
-  );
 }

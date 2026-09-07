@@ -7,6 +7,7 @@ import {
   workspaceViewResultSchema,
 } from "./workspace-view-contracts.ts";
 
+export const workspaceIdleTimeoutMs = 60_000;
 export const workspaceLifetimeMs = 60 * 60 * 1000;
 export const checkpointIntervalMs = 60_000;
 export const checkpointGraceMs = 300_000;
