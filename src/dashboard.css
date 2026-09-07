@@ -50,6 +50,9 @@
   --muted-foreground: var(--sidebar-muted-foreground);
   --muted: var(--sidebar-hover);
   --accent: var(--sidebar-accent);
+  --conversation-green: #16803c;
+  --conversation-red: #c52c36;
+  --conversation-purple: #8250df;
   color: var(--sidebar-foreground);
   width: 256px;
   flex-shrink: 0;
@@ -57,6 +60,12 @@
   flex-direction: column;
   background: var(--sidebar);
   border-right: 0.5px solid var(--border);
+}
+
+.dark .dashboard-sidebar {
+  --conversation-green: #56d387;
+  --conversation-red: #ff7b86;
+  --conversation-purple: #bc8cff;
 }
 
 .sidebar-brand {
@@ -324,6 +333,55 @@
   white-space: nowrap;
   font-size: 11px;
   line-height: 16px;
+  color: var(--muted-foreground);
+}
+
+.conversation-activity,
+.conversation-diff {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  line-height: 16px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.conversation-activity {
+  color: var(--muted-foreground);
+}
+
+.conversation-activity-repository {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.conversation-diff,
+.conversation-pr-state {
+  flex-shrink: 0;
+}
+
+.conversation-additions {
+  color: var(--conversation-green);
+}
+
+.conversation-deletions {
+  color: var(--conversation-red);
+}
+
+.dashboard-sidebar .conversation-row[data-pr-state="open"] .conversation-repository-icon {
+  color: var(--conversation-green);
+}
+
+.dashboard-sidebar .conversation-row[data-pr-state="merged"] .conversation-repository-icon {
+  color: var(--conversation-purple);
+}
+
+.dashboard-sidebar .conversation-row[data-pr-state="closed"] .conversation-repository-icon {
+  color: var(--conversation-red);
+}
+
+.dashboard-sidebar .conversation-row[data-pr-state="draft"] .conversation-repository-icon {
   color: var(--muted-foreground);
 }
 

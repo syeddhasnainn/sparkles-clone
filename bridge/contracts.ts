@@ -184,6 +184,7 @@ export type BridgeRequest = z.infer<typeof bridgeRequestSchema>;
 export type BridgeResponse = z.infer<typeof bridgeResponseSchema>;
 
 export interface Workspace {
+  activity?: WorkspaceActivity;
   selection?: AgentSelection;
   id: string;
   prompt: string;
@@ -199,4 +200,20 @@ export interface Workspace {
   browserSessionError?: string | null;
   canResume?: boolean;
   restoring?: boolean;
+}
+
+export interface DiffSummary {
+  additions: number;
+  deletions: number;
+  partial?: boolean;
+}
+
+export interface PullRequestSummary extends DiffSummary {
+  number: number;
+  state: "open" | "draft" | "merged" | "closed";
+}
+
+export interface WorkspaceActivity {
+  changes?: DiffSummary;
+  pullRequest?: PullRequestSummary;
 }

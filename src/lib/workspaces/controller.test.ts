@@ -652,6 +652,28 @@ it("keeps a workspace alive while its preview is being viewed", async () => {
   expect(Date.now() - records.get(`workspace:${task.id}`)!.idleSince!).toBeLessThan(60_000);
 });
 
+it("does not extend idle time for background sidebar reads", async () => {
+  const { controller, records, execute } = harness();
+  const task = await controller.start("user", input());
+  await controller.alarm();
+  const record = records.get(`workspace:${task.id}`)!;
+  const idleSince = Date.now() - 600_001;
+  record.idleSince = idleSince;
+  execute.mockResolvedValueOnce({
+    running: true,
+    sandboxId: "sb-test",
+    commit: record.commit,
+    view: { kind: "files", files: [], truncated: false },
+  });
+  await controller.view(
+    task.id,
+    { kind: "files", scope: "changed", base: "task" },
+    "https://app.example",
+    false,
+  );
+  expect(records.get(`workspace:${task.id}`)!.idleSince).toBe(idleSince);
+});
+
 it("keeps an active agent alive beyond the idle timeout", async () => {
   const { controller, records, execute } = harness();
   const task = await controller.start("user", input());

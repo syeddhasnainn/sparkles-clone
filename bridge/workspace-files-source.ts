@@ -51,7 +51,21 @@ function listFiles(command, base) {
     if (match && changes.has(match[3])) Object.assign(changes.get(match[3]), {additions:match[1] === '-' ? null : Number(match[1]),deletions:match[2] === '-' ? null : Number(match[2])});
   }
   const untracked = git(['ls-files','--others','--exclude-standard','-z']).toString().split('\0').filter(Boolean);
-  for (const name of untracked) changes.set(name, {status:'added',additions:null,deletions:0});
+  for (const name of untracked) {
+    let additions = null;
+    try {
+      const full = safe(name);
+      const stat = fs.lstatSync(full);
+      if (stat.isFile() && stat.size <= limit) {
+        const content = fs.readFileSync(full);
+        if (!content.includes(0)) {
+          additions = content.filter(byte => byte === 10).length;
+          if (content.length && content[content.length - 1] !== 10) additions++;
+        }
+      }
+    } catch {}
+    changes.set(name, {status:'added',additions,deletions:0});
+  }
   const namesToShow = command.scope === 'all' ? new Set([...git(['ls-files','-z']).toString().split('\0'),...untracked]) : changes.keys();
   const files = [];
   let truncated = false;
