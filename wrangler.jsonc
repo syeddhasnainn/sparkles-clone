@@ -10,7 +10,7 @@
   "observability": { "enabled": true, "head_sampling_rate": 1 },
 
   "vars": {
-    "MODEL_GATEWAY_URL": "",
+    "MODEL_GATEWAY_URL": "https://sparkles-demo.syedhasnainmurtaza.workers.dev",
     "MODAL_APP_NAME": "sparkles-workspaces",
     "AGENT_MODEL": "openrouter/anthropic/claude-sonnet-4",
   },
@@ -34,7 +34,12 @@
   "r2_buckets": [{ "binding": "CHECKPOINTS", "bucket_name": "sparkles-checkpoints" }],
 
   "d1_databases": [
-    { "binding": "DB", "database_name": "sparkles-demo", "migrations_dir": "migrations" },
+    {
+      "binding": "DB",
+      "database_name": "sparkles-demo",
+      "database_id": "fcf950ae-7b33-4d48-8400-2ea1d689b50a",
+      "migrations_dir": "migrations",
+    },
   ],
 
   "secrets": {
