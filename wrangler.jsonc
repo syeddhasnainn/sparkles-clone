@@ -10,15 +10,14 @@
   "observability": { "enabled": true, "head_sampling_rate": 1 },
 
   "vars": {
-    "MODEL_GATEWAY_URL": "",
+    "MODEL_GATEWAY_URL": "https://sparkles-demo.syedhasnainmurtaza.workers.dev",
     "MODAL_APP_NAME": "sparkles-workspaces",
     "AGENT_MODEL": "openrouter/anthropic/claude-sonnet-4",
   },
   "containers": [
     {
       "class_name": "ModalBridge",
-      "image": "./bridge/Dockerfile",
-      "image_build_context": "./bridge",
+      "image": "registry.cloudflare.com/632ba21f88cc2bc2d8141df882c12f98/sparkles-bridge@sha256:2c0f1cc8ff4a4a5e633ff274d5bb2a83a8849213d04f9ed77c155324902b62fb",
       "instance_type": "basic",
       "max_instances": 4,
     },
@@ -34,7 +33,12 @@
   "r2_buckets": [{ "binding": "CHECKPOINTS", "bucket_name": "sparkles-checkpoints" }],
 
   "d1_databases": [
-    { "binding": "DB", "database_name": "sparkles-demo", "migrations_dir": "migrations" },
+    {
+      "binding": "DB",
+      "database_name": "sparkles-demo",
+      "database_id": "fcf950ae-7b33-4d48-8400-2ea1d689b50a",
+      "migrations_dir": "migrations",
+    },
   ],
 
   "secrets": {

@@ -1,0 +1,34 @@
+name: Build workspace bridge
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Build and verify bridge
+        run: |
+          docker buildx create --use
+          docker buildx build --platform linux/amd64 --load --tag sparkles-bridge:ci bridge
+          docker run --detach --name bridge --publish 8080:8080 --env MODAL_TOKEN_ID=verification --env MODAL_TOKEN_SECRET=verification sparkles-bridge:ci
+          trap 'docker logs bridge; docker stop bridge' EXIT
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --request POST http://localhost:8080/capabilities > /tmp/capabilities.json; then
+              break
+            fi
+            sleep 1
+          done
+          node -e 'const fs = require("node:fs"); const result = JSON.parse(fs.readFileSync("/tmp/capabilities.json")); if (result.version !== 2) process.exit(1);'
+          docker buildx build --platform linux/amd64 --output type=oci,dest=/tmp/sparkles-bridge.tar bridge
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: sparkles-bridge
+          path: /tmp/sparkles-bridge.tar
+          compression-level: 0
+          retention-days: 1

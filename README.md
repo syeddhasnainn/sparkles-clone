@@ -102,9 +102,9 @@ Before checkout, the Worker rechecks the user's access through GitHub, then crea
 
 For local end-to-end testing, run `pnpm run bridge:install` once and then `pnpm dev`. The Worker calls the local Node bridge, which creates real sandboxes in the configured Modal account. No Docker or second terminal is needed. Local runs incur normal Modal usage. Local bridge connection details are injected only into the development Worker; production builds always use the Cloudflare Container binding.
 
-Deploying builds the Docker image and requires a Docker engine on the build machine (for example, a CI runner) and Cloudflare Containers access. Docker is not needed on your Mac for development.
+Deployment uses a verified bridge image pinned by digest in `wrangler.jsonc`. The Build workspace bridge GitHub Actions workflow builds and checks the Linux image and exports an OCI archive without application secrets. Import the archive into the Cloudflare registry and update the configured digest when changing bridge code. Deploying that prebuilt image requires no local Docker engine. Docker is not needed on your Mac for development.
 
-OpenCode or Codex executes the saved prompt through ACP in the sandbox. Conversation history persists in D1, and R2 checkpoints let stopped tasks resume in a fresh sandbox with their files and original agent session. Interactive terminal access, file uploads, and pushes/PRs are not implemented. Modal's Node SDK is confined to the bridge, and the Worker talks to a small provider interface so another sandbox service can replace it later.
+OpenCode or Codex executes the saved prompt through ACP in the sandbox. Conversation history persists in D1, and R2 checkpoints let stopped tasks resume in a fresh sandbox with their files and original agent session. Git pushes and pull requests use the connected GitHub installation. Modal's Node SDK is confined to the bridge, and the Worker talks to a small provider interface so another sandbox service can replace it later.
 
 Modal's SDK is pinned to `0.10.0` in the bridge lockfile. The bridge has its own minimum-release-age and trust policies. Its exact-version trust exception accounts for the npm package name previously belonging to an unrelated project; this version was checked against `modal-labs/modal-client/js/package.json`. Optional native CBOR build scripts and protobuf postinstall scripts are disabled.
 
@@ -139,6 +139,8 @@ Account settings can clear saved cloud-browser sessions and reset browsers in ru
 Protocol references: [ACP introduction](https://agentclientprotocol.com/get-started/introduction), [OpenCode ACP support](https://opencode.ai/docs/acp/).
 
 ## Cloudflare deployment
+
+The deployed app is https://sparkles-demo.syedhasnainmurtaza.workers.dev. The configured D1 database and private R2 checkpoint bucket are separate from local development storage. The bridge sleeps after five minutes without requests; idle Modal workspaces save and stop after ten minutes.
 
 The app remains on WorkOS Staging for the demo. Before deploying, configure the HTTPS callback and application URLs in WorkOS and the GitHub App, and update the redirect environment variables accordingly.
 
