@@ -114,19 +114,11 @@
   margin: 0 auto;
 }
 
-.settings-eyebrow {
-  color: var(--muted-foreground);
-  text-transform: none;
-  font-size: 12px;
-  line-height: 16px;
-}
-
 .settings-heading h1 {
   font-size: 24px;
   font-weight: 400;
   line-height: 32px;
   letter-spacing: -0.6px;
-  margin-top: 4px;
 }
 
 .settings-description {
