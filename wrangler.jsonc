@@ -17,8 +17,7 @@
   "containers": [
     {
       "class_name": "ModalBridge",
-      "image": "./bridge/Dockerfile",
-      "image_build_context": "./bridge",
+      "image": "registry.cloudflare.com/632ba21f88cc2bc2d8141df882c12f98/sparkles-bridge@sha256:2c0f1cc8ff4a4a5e633ff274d5bb2a83a8849213d04f9ed77c155324902b62fb",
       "instance_type": "basic",
       "max_instances": 4,
     },

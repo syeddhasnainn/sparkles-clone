@@ -2,9 +2,6 @@ name: Build workspace bridge
 
 on:
   workflow_dispatch:
-  push:
-    branches: [deploy/cloudflare]
-    paths: [bridge/**, .github/workflows/build-bridge.yml]
 
 permissions:
   contents: read
