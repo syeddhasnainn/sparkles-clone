@@ -5,6 +5,10 @@ import { createCheckpointStore } from "./checkpoint-store";
 import { createBrowserProfileStore } from "./browser-profile-store";
 import { WorkspaceController } from "./controller";
 import type { WorkspaceStorage } from "./controller";
+import type { WorkspaceRecord } from "./controller";
+import { WorkspaceActivityStore } from "./activity";
+import { readTaskPullRequest } from "./pull-request";
+import { githubRequest } from "../github/service.server";
 import { authorizeRepository, createCheckoutToken, revokeCheckoutToken } from "./github.server";
 import { containerProvider } from "./provider.server";
 import type { AgentCommand, CreateWorkspace } from "../../../bridge/contracts";
@@ -44,8 +48,36 @@ export class WorkspaceManager extends DurableObject<Env> {
     provider: (id) => containerProvider(this.env, `bridge-${parseInt(id[0], 16) % 4}`, id),
   });
 
-  list() {
-    return this.controller.list();
+  private activity = new WorkspaceActivityStore(this.ctx.storage, {
+    pullRequest: (record, known) =>
+      readTaskPullRequest(githubRequest, record.userId, record, known),
+    changes: async (record) => {
+      const result = await this.controller.view(
+        record.id,
+        { kind: "files", scope: "changed", base: "task" },
+        this.env.MODEL_GATEWAY_URL,
+        false,
+      );
+      if (result.kind !== "files") throw new Error("Workspace changes are unavailable.");
+      return {
+        additions: result.files.reduce((sum, file) => sum + (file.additions ?? 0), 0),
+        deletions: result.files.reduce((sum, file) => sum + (file.deletions ?? 0), 0),
+        partial:
+          result.truncated ||
+          result.files.some((file) => file.additions === null || file.deletions === null),
+      };
+    },
+  });
+
+  private async refreshActivity() {
+    const records = await this.ctx.storage.list<WorkspaceRecord>({ prefix: "workspace:" });
+    await this.activity.refresh([...records.values()]);
+  }
+
+  async list() {
+    const workspaces = await this.controller.list();
+    this.ctx.waitUntil(this.refreshActivity());
+    return this.activity.enrich(workspaces);
   }
   browserSessions(userId: string) {
     return this.controller.browserSessions(userId);
@@ -72,7 +104,8 @@ export class WorkspaceManager extends DurableObject<Env> {
     const runId = await this.controller.stop(id);
     await revokeModelGateway(this.env.DB, runId);
   }
-  alarm() {
-    return this.controller.alarm();
+  async alarm() {
+    await this.controller.alarm();
+    this.ctx.waitUntil(this.refreshActivity());
   }
 }

@@ -334,7 +334,7 @@ export class WorkspaceController {
     await this.storage.setAlarm(Date.now() + 100);
     return response.agent;
   }
-  async view(id: string, command: WorkspaceViewCommand, parentOrigin: string) {
+  async view(id: string, command: WorkspaceViewCommand, parentOrigin: string, touch = true) {
     const record = await this.record(id);
     if (record.status !== "ready" || record.expiresAt <= Date.now())
       throw new Error("Resume the workspace to open its files and live views.");
@@ -354,7 +354,7 @@ export class WorkspaceController {
     if (latest.status !== "ready" || owner(latest).runId !== owner(record).runId)
       throw new Error("The workspace stopped while opening the view.");
     if (!response.view) throw new Error("Workspace views are unavailable.");
-    if (response.view.kind !== "error" && latest.idleSince !== undefined)
+    if (touch && response.view.kind !== "error" && latest.idleSince !== undefined)
       await this.patch(latest, { idleSince: Date.now() });
     return response.view;
   }

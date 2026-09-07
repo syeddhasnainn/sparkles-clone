@@ -7,6 +7,7 @@ import Plus from "@hugeicons/core-free-icons/Add01Icon";
 import { useWorkspaces } from "@/hooks/use-workspaces";
 import WorkflowCircle04Icon from "@hugeicons/core-free-icons/WorkflowCircle04Icon";
 import { DashboardIcon } from "./dashboard-icon";
+import { ConversationActivity } from "./conversation-activity";
 
 export function DashboardSidebar({
   onToggle,
@@ -85,6 +86,7 @@ export function DashboardSidebar({
                   to="/app/tasks/$taskId"
                   params={{ taskId: task.id }}
                   className="conversation-row"
+                  data-pr-state={task.activity?.pullRequest?.state}
                   activeProps={{ className: "conversation-row-active", "aria-current": "page" }}
                   onClick={onNavigate}
                   title={task.prompt}
@@ -97,9 +99,10 @@ export function DashboardSidebar({
                   />
                   <span className="conversation-copy">
                     <span className="conversation-title">{task.prompt}</span>
-                    <span className="conversation-repository">
-                      {task.repository.name.split("/").at(-1)}
-                    </span>
+                    <ConversationActivity
+                      activity={task.activity}
+                      repository={task.repository.name.split("/").at(-1) ?? task.repository.name}
+                    />
                   </span>
                   <span
                     className={`conversation-status conversation-status-${task.status}`}

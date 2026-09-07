@@ -327,6 +327,55 @@
   color: var(--muted-foreground);
 }
 
+.conversation-activity,
+.conversation-diff {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  line-height: 16px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.conversation-activity {
+  color: var(--muted-foreground);
+}
+
+.conversation-activity-repository {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.conversation-diff,
+.conversation-pr-state {
+  flex-shrink: 0;
+}
+
+.conversation-additions {
+  color: light-dark(#16803c, #56d387);
+}
+
+.conversation-deletions {
+  color: light-dark(#c52c36, #ff7b86);
+}
+
+.dashboard-sidebar .conversation-row[data-pr-state="open"] .conversation-repository-icon {
+  color: light-dark(#16803c, #56d387);
+}
+
+.dashboard-sidebar .conversation-row[data-pr-state="merged"] .conversation-repository-icon {
+  color: light-dark(#8250df, #bc8cff);
+}
+
+.dashboard-sidebar .conversation-row[data-pr-state="closed"] .conversation-repository-icon {
+  color: light-dark(#c52c36, #ff7b86);
+}
+
+.dashboard-sidebar .conversation-row[data-pr-state="draft"] .conversation-repository-icon {
+  color: var(--muted-foreground);
+}
+
 .conversation-status {
   width: 6px;
   height: 6px;

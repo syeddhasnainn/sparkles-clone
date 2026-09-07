@@ -63,6 +63,24 @@ it("keeps task changes visible after committing, while uncommitted comparison is
   expect(read({ kind: "files", scope: "changed", base: "head" })).toMatchObject({ files: [] });
 });
 
+it("counts untracked text lines and marks binary or oversized counts unavailable", () => {
+  writeFileSync(join(root, "new.txt"), "one\ntwo");
+  writeFileSync(join(root, "empty.txt"), "");
+  writeFileSync(join(root, "binary.bin"), Buffer.from([0, 1]));
+  writeFileSync(join(root, "large.txt"), "x".repeat(600 * 1024));
+  const result = read({ kind: "files", scope: "changed", base: "task" });
+  if (result.kind !== "files") throw new Error("Missing files");
+  expect(result.files.find((file) => file.path === "new.txt")).toMatchObject({
+    additions: 2,
+    deletions: 0,
+  });
+  expect(result.files.find((file) => file.path === "empty.txt")).toMatchObject({ additions: 0 });
+  expect(result.files.find((file) => file.path === "binary.bin")).toMatchObject({
+    additions: null,
+  });
+  expect(result.files.find((file) => file.path === "large.txt")).toMatchObject({ additions: null });
+});
+
 it("rejects traversal, internal credentials, and symlinks outside the repository", () => {
   symlinkSync(tmpdir(), join(root, "escape"));
   writeFileSync(join(root, ".env"), "SECRET=hidden");
