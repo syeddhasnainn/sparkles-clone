@@ -17,7 +17,7 @@
   "containers": [
     {
       "class_name": "ModalBridge",
-      "image": "registry.cloudflare.com/632ba21f88cc2bc2d8141df882c12f98/sparkles-bridge@sha256:0cdd933bc06af048c77153c5653d7c3b1ae957e711048f13fe7c516885c3a58b",
+      "image": "registry.cloudflare.com/632ba21f88cc2bc2d8141df882c12f98/sparkles-bridge@sha256:e0b59357ab50d16dd5df14db7efcddb883c42847fec3e884102e96658745d1e5",
       "instance_type": "basic",
       "max_instances": 4,
     },
