@@ -1627,15 +1627,6 @@
   flex-shrink: 0;
 }
 
-.composer-usage {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-  border-radius: var(--radius);
-  padding: 2px 4px;
-}
-
 .composer-circle {
   display: inline-flex;
   justify-content: center;
@@ -1776,7 +1767,6 @@
 @media (hover: hover) {
   .composer-permission:hover,
   .composer-model:hover,
-  .composer-usage:hover,
   .composer-menu-item:hover:not(:disabled) {
     background: var(--muted);
   }

@@ -9,6 +9,15 @@ import { AppIcon } from "../ui/app-icon";
 import { agentName, defaultAgentSelection } from "../../../bridge/agent-selection";
 import type { AgentSelection } from "../../../bridge/agent-selection";
 
+const opencodeModels = [
+  { name: "GLM 5.3 Flash", value: defaultAgentSelection },
+  { name: "Claude Sonnet 4.6" },
+  { name: "Claude Opus 4.6" },
+  { name: "Gemini 3.1 Pro Preview" },
+  { name: "Kimi K2.5" },
+  { name: "DeepSeek V3.2" },
+];
+
 function AgentLogo({ agent }: { agent: AgentSelection["agent"] }) {
   return agent === "codex" ? (
     <span aria-hidden="true" className="agent-picker-logo agent-picker-codex" />
@@ -35,22 +44,22 @@ export function AgentPicker({
     selection.provider === "chatgpt"
       ? (bundledChatGPTModels.find((model) => model.id === selection.model)?.name ??
         selection.model.replace(/^gpt-/, "GPT-"))
-      : "Sparkles model";
-  const models: { name: string; value: AgentSelection }[] = [
-    ...(agent === "opencode" ? [{ name: "Sparkles model", value: defaultAgentSelection }] : []),
-    ...bundledChatGPTModels.map((model) => ({
-      name: model.name,
-      value: {
-        agent,
-        provider: "chatgpt" as const,
-        model: model.id,
-        permissionMode:
-          agent === "codex" && selection.agent === "codex" && selection.provider === "chatgpt"
-            ? selection.permissionMode
-            : undefined,
-      },
-    })),
-  ];
+      : "GLM 5.3 Flash";
+  const models: { name: string; value?: AgentSelection }[] =
+    agent === "opencode"
+      ? opencodeModels
+      : bundledChatGPTModels.map((model) => ({
+          name: model.name,
+          value: {
+            agent,
+            provider: "chatgpt" as const,
+            model: model.id,
+            permissionMode:
+              agent === "codex" && selection.agent === "codex" && selection.provider === "chatgpt"
+                ? selection.permissionMode
+                : undefined,
+          },
+        }));
   const visible = models.filter((model) =>
     model.name.toLowerCase().includes(query.trim().toLowerCase()),
   );
@@ -104,7 +113,7 @@ export function AgentPicker({
                 ))}
               </div>
               <div className="agent-picker-models">
-                {!connected && onChange && (
+                {agent === "codex" && !connected && onChange && (
                   <div className="agent-picker-connect-section">
                     <div>
                       <strong>ChatGPT</strong>
@@ -122,6 +131,7 @@ export function AgentPicker({
                 >
                   {visible.map((model) => {
                     const selected =
+                      !!model.value &&
                       selection.agent === agent &&
                       selection.provider === model.value.provider &&
                       (selection.provider !== "chatgpt" ||
@@ -129,17 +139,19 @@ export function AgentPicker({
                           selection.model === model.value.model));
                     return (
                       <button
-                        key={model.value.provider === "chatgpt" ? model.value.model : "sparkles"}
+                        key={model.name}
                         type="button"
                         className="composer-menu-item"
                         aria-pressed={selected}
                         disabled={
                           disabled ||
                           !onChange ||
+                          !model.value ||
                           (model.value.provider === "chatgpt" && !connected)
                         }
                         onClick={() => {
                           const next = model.value;
+                          if (!next) return;
                           if (next.provider === "chatgpt" && selection.provider === "chatgpt") {
                             const supported = bundledChatGPTModels.find(
                               (item) => item.id === next.model,
