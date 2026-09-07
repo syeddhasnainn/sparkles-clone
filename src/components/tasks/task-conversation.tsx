@@ -1,5 +1,5 @@
 import { agentName } from "../../../bridge/agent-selection";
-import { useContext } from "react";
+import { memo, useContext } from "react";
 import ViewIcon from "@hugeicons/core-free-icons/ViewIcon";
 import ArrowRight01Icon from "@hugeicons/core-free-icons/ArrowRight01Icon";
 import { AppIcon } from "../ui/app-icon";
@@ -92,7 +92,7 @@ function conversation(events: Events) {
     });
   return messages;
 }
-export function Conversation({
+export const Conversation = memo(function Conversation({
   events,
   streaming = false,
   agentKind = "opencode",
@@ -202,4 +202,4 @@ export function Conversation({
       {(preparationLabel || streaming) && !hasStarted && <LoadingState label={preparationLabel} />}
     </div>
   );
-}
+});

@@ -1,7 +1,5 @@
 import { agentName } from "../../../bridge/agent-selection";
-import { useContext, useRef } from "react";
-import { createPortal } from "react-dom";
-import { TaskHeaderContext } from "../dashboard/task-header-context";
+import { useRef } from "react";
 import { useTaskAgent } from "@/hooks/use-task-agent";
 import { useWorkspaces } from "@/hooks/use-workspaces";
 import type { AgentSnapshot, Workspace } from "../../../bridge/contracts";
@@ -12,11 +10,16 @@ import { Followup } from "./task-followup";
 import { TaskWorkbench } from "../workspace-views/task-workbench";
 import { previewAgentPrompt } from "../workspace-views/preview-agent-prompt";
 
-export function TaskPage({ taskId }: { taskId: string }) {
-  const headerElement = useContext(TaskHeaderContext);
+export function TaskPage({
+  taskId,
+  initialConversation,
+}: {
+  taskId: string;
+  initialConversation?: AgentSnapshot;
+}) {
   const { data, error, resume } = useWorkspaces();
   const workspace = data?.workspaces.find((item) => item.id === taskId);
-  const agent = useTaskAgent(taskId, workspace?.status === "ready");
+  const agent = useTaskAgent(taskId, workspace?.status === "ready", initialConversation);
   const previewRequest = useRef<string | null>(null);
   const previewSubmitting = useRef(false);
   const canStartPreview =
@@ -42,10 +45,6 @@ export function TaskPage({ taskId }: { taskId: string }) {
       previewSubmitting.current = false;
     }
   };
-  const title = workspace?.prompt || "Loading task…";
-  const titleCharacters = Array.from(title);
-  const headerTitle =
-    titleCharacters.length > 60 ? titleCharacters.slice(0, 59).join("").trimEnd() + "…" : title;
   return (
     <TaskWorkbench
       taskId={taskId}
@@ -59,16 +58,9 @@ export function TaskPage({ taskId }: { taskId: string }) {
       agentWorking={agent.sending || agent.awaitingPrompt || agent.snapshot?.status === "running"}
     >
       <section className="task-page">
-        {headerElement &&
-          createPortal(
-            <div className="task-chat-header">
-              <h1 title={title}>{headerTitle}</h1>
-              <span className="sr-only" role="status">
-                {statusLabel(workspace, agent.snapshot)}
-              </span>
-            </div>,
-            headerElement,
-          )}
+        <span className="sr-only" role="status">
+          {statusLabel(workspace, agent.snapshot)}
+        </span>
         <div className="task-scroll" tabIndex={0} aria-label="Task conversation">
           <div className="task-transcript">
             {(error || workspace?.error || agent.error) && (

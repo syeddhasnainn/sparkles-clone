@@ -16,6 +16,39 @@ const prompt = {
   prompt: "Hello",
 };
 
+it("renders loader history immediately and polls only after its saved cursor", async () => {
+  const initial = {
+    status: "idle" as const,
+    events: [{ id: 2501, type: "user", data: { text: "Already loaded" } }],
+    cursor: 2501,
+    head: 2501,
+  };
+  command.mockResolvedValue(JSON.stringify({ ...initial, events: [] }));
+  const { result } = renderHook(() => useAgentConversation("task", true, command, initial));
+  const events = result.current.events;
+  expect(events).toEqual(initial.events);
+  await waitFor(() => expect(command).toHaveBeenCalled());
+  expect(command.mock.calls[0][0].data.command).toEqual({ kind: "events", cursor: 2501 });
+  expect(result.current.events).toBe(events);
+});
+
+it("catches up outstanding pages immediately even when the workspace is stopped", async () => {
+  command.mockImplementation(({ data }) => {
+    const cursor = data.command.cursor + 1;
+    return Promise.resolve(
+      JSON.stringify({
+        status: "stopped",
+        cursor,
+        head: 3,
+        events: [{ id: cursor, type: "user", data: { text: `Message ${cursor}` } }],
+      }),
+    );
+  });
+  const { result } = renderHook(() => useAgentConversation("task", false, command));
+  await waitFor(() => expect(result.current.events).toHaveLength(3));
+  expect(command).toHaveBeenCalledTimes(3);
+});
+
 it("shows a prompt before the network resolves and reconciles its saved event without duplication", async () => {
   let resolveSend!: (value: string) => void;
   let saved = false;

@@ -19,13 +19,14 @@ const call: ToolCall = {
 
 it("expands tools independently when their titles match", () => {
   render(<ToolTimeline calls={[call, { ...call, id: "call-b", eventId: 2 }]} />);
+  expect(screen.queryByText("Build succeeded")).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Ran commands" }));
   const rows = screen.getAllByRole("button", { name: /Ran pnpm build Completed/ });
   expect(rows[0].getAttribute("aria-expanded")).toBe("false");
   fireEvent.click(rows[0]);
   expect(rows[0].getAttribute("aria-expanded")).toBe("true");
   expect(rows[1].getAttribute("aria-expanded")).toBe("false");
-  expect(screen.getAllByText("Build succeeded")).toHaveLength(2);
+  expect(screen.getAllByText("Build succeeded")).toHaveLength(1);
 });
 
 it("keeps failures visible in the collapsed summary", () => {

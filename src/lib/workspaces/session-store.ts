@@ -22,7 +22,7 @@ export interface SavedCheckpoint {
 export interface SessionStore {
   ensure(owner: SessionOwner): Promise<void>;
   beginRun(owner: SessionOwner): Promise<void>;
-  read(owner: SessionOwner, cursor: number): Promise<AgentSnapshot>;
+  read(owner: SessionOwner, cursor: number, options?: { all?: boolean }): Promise<AgentSnapshot>;
   saveEvents(owner: SessionOwner, snapshot: AgentSnapshot): Promise<number>;
   reservePrompt(
     owner: SessionOwner,
@@ -95,13 +95,13 @@ export function createSessionStore(db: Pick<D1Database, "prepare" | "batch">): S
         .bind(owner.runId, Date.now(), owner.taskId, owner.userId, owner.runId)
         .run();
     },
-    async read(owner, cursor) {
+    async read(owner, cursor, options) {
       const session = await readSession(owner);
       const rows = await db
         .prepare(
-          "SELECT event_id, type, payload FROM agent_events WHERE task_id = ? AND event_id > ? ORDER BY event_id LIMIT 100",
+          `SELECT event_id, type, payload FROM agent_events WHERE task_id = ? AND event_id > ? AND event_id <= ? ORDER BY event_id${options?.all ? "" : " LIMIT 100"}`,
         )
-        .bind(owner.taskId, cursor)
+        .bind(owner.taskId, cursor, session.cursor)
         .all();
       const events = rows.results.map((row) => {
         const parsed = eventRow.parse(row);

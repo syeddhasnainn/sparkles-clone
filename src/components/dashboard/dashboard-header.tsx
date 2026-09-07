@@ -3,6 +3,7 @@ import type { RefObject } from "react";
 import { DashboardIcon } from "./dashboard-icon";
 
 interface DashboardHeaderProps {
+  taskTitle?: string;
   contentRef: (element: HTMLDivElement | null) => void;
   sidebarOpen: boolean;
   onToggle: () => void;
@@ -16,7 +17,11 @@ export function DashboardHeader({
   settings,
   toggleRef,
   contentRef,
+  taskTitle,
 }: DashboardHeaderProps) {
+  const characters = Array.from(taskTitle ?? "");
+  const title =
+    characters.length > 60 ? characters.slice(0, 59).join("").trimEnd() + "…" : taskTitle;
   return (
     <header className="dashboard-header" data-settings={settings || undefined}>
       <Tooltip>
@@ -34,7 +39,13 @@ export function DashboardHeader({
           {sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
         </TooltipContent>
       </Tooltip>
-      <div className="dashboard-title-slot" ref={contentRef} />
+      <div className="dashboard-title-slot" ref={contentRef}>
+        {taskTitle && (
+          <div className="task-chat-header">
+            <h1 title={taskTitle}>{title}</h1>
+          </div>
+        )}
+      </div>
     </header>
   );
 }

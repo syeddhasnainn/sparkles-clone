@@ -1,15 +1,39 @@
 import { TooltipProvider } from "../ui/tooltip";
 import { useRef, useState } from "react";
 import { Dialog } from "@base-ui/react/dialog";
-import { Link, Outlet, useMatchRoute } from "@tanstack/react-router";
+import { getRouteApi, Link, Outlet, useMatchRoute, useParams } from "@tanstack/react-router";
+import { useWorkspaces } from "@/hooks/use-workspaces";
 import { useMobile } from "@/hooks/use-mobile";
 import { SettingsSidebar } from "@/components/settings/settings-sidebar";
 import { DashboardSidebar } from "./dashboard-sidebar";
 import { DashboardHeader } from "./dashboard-header";
 import { TaskHeaderContext } from "./task-header-context";
 import { DashboardDraftContext } from "./dashboard-draft";
+import { WorkspacesProvider } from "./workspaces-provider";
+import { listWorkspaces, stopWorkspace, resumeWorkspace } from "@/lib/workspaces/functions";
+import type { WorkspaceClient } from "@/hooks/use-workspaces";
+
+const appRoute = getRouteApi("/app");
+const workspaceClient: WorkspaceClient = {
+  list: listWorkspaces,
+  stop: (id) => stopWorkspace({ data: { id } }),
+  resume: (id) => resumeWorkspace({ data: { id } }),
+};
 
 export function Dashboard() {
+  const initialData = appRoute.useLoaderData();
+  const { user } = appRoute.useRouteContext();
+  return (
+    <WorkspacesProvider key={user.id} initialData={initialData} client={workspaceClient}>
+      <DashboardLayout />
+    </WorkspacesProvider>
+  );
+}
+
+function DashboardLayout() {
+  const { taskId } = useParams({ strict: false });
+  const { data } = useWorkspaces();
+  const taskTitle = data.workspaces.find((workspace) => workspace.id === taskId)?.prompt;
   const [headerElement, setHeaderElement] = useState<HTMLDivElement | null>(null);
   const mobile = useMobile();
   const matchRoute = useMatchRoute();
@@ -64,6 +88,7 @@ export function Dashboard() {
           </Dialog.Root>
           <main className="dashboard-main" id="dashboard-content" tabIndex={-1}>
             <DashboardHeader
+              taskTitle={taskTitle}
               contentRef={setHeaderElement}
               settings={settings}
               sidebarOpen={sidebarOpen}

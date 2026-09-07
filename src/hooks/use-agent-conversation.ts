@@ -6,16 +6,17 @@ export function useAgentConversation(
   id: string,
   enabled: boolean,
   execute: (input: { data: { id: string; command: AgentCommand } }) => Promise<string>,
+  initialSnapshot: AgentSnapshot | null = null,
 ) {
-  const [snapshot, setSnapshot] = useState<AgentSnapshot | null>(null);
-  const [events, setEvents] = useState<AgentSnapshot["events"]>([]);
+  const [snapshot, setSnapshot] = useState<AgentSnapshot | null>(initialSnapshot);
+  const [events, setEvents] = useState<AgentSnapshot["events"]>(initialSnapshot?.events ?? []);
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [pendingPrompt, setPendingPrompt] = useState<Extract<
     AgentCommand,
     { kind: "prompt" }
   > | null>(null);
-  const cursor = useRef(0);
+  const cursor = useRef(initialSnapshot?.cursor ?? 0);
   useEffect(() => {
     let cancelled = false;
     let loading = false;
@@ -23,18 +24,24 @@ export function useAgentConversation(
       if (loading) return;
       loading = true;
       try {
-        const next = agentSnapshotSchema.parse(
-          JSON.parse(
-            await execute({
-              data: { id, command: { kind: "events", cursor: cursor.current } },
-            }),
-          ),
-        );
-        if (cancelled) return;
-        cursor.current = next.cursor;
-        setSnapshot((current) => ((current?.head ?? 0) > (next.head ?? 0) ? current : next));
-        setEvents((previous) => [...previous, ...next.events]);
-        setError(null);
+        let through: number | undefined;
+        do {
+          const previousCursor = cursor.current;
+          const next = agentSnapshotSchema.parse(
+            JSON.parse(
+              await execute({
+                data: { id, command: { kind: "events", cursor: cursor.current } },
+              }),
+            ),
+          );
+          if (cancelled) return;
+          cursor.current = next.cursor;
+          setSnapshot((current) => ((current?.head ?? 0) > (next.head ?? 0) ? current : next));
+          if (next.events.length) setEvents((previous) => [...previous, ...next.events]);
+          setError(null);
+          through ??= next.head ?? next.cursor;
+          if (next.cursor >= through || next.cursor <= previousCursor) break;
+        } while (!cancelled);
       } catch {
         if (!cancelled) setError("Could not load the saved conversation. Retrying…");
       } finally {

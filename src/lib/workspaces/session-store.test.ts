@@ -51,6 +51,32 @@ beforeEach(async () => {
 afterAll(() => runtime.dispose());
 
 describe("durable agent sessions", () => {
+  it("reads the entire initial history beyond the former page limit", async () => {
+    const events = Array.from({ length: 1001 }, (_, index) => ({
+      id: index + 1,
+      type: "user",
+      data: { text: `Message ${index + 1}` },
+    }));
+    await db.batch([
+      db
+        .prepare(
+          "INSERT INTO agent_events(task_id, event_id, run_id, type, payload, created_at) SELECT ?, json_extract(value, '$.id'), ?, json_extract(value, '$.type'), json_extract(value, '$.data'), ? FROM json_each(?)",
+        )
+        .bind(owner.taskId, owner.runId, Date.now(), JSON.stringify(events)),
+      db
+        .prepare("UPDATE agent_sessions SET cursor = ? WHERE task_id = ?")
+        .bind(events.length, owner.taskId),
+    ]);
+    expect((await store.read(owner, 0)).events).toHaveLength(100);
+    const history = await store.read(owner, 0, { all: true });
+    expect(history.events).toEqual(events);
+    expect(history.cursor).toBe(1001);
+    expect(history.head).toBe(1001);
+    await expect(store.read({ ...owner, userId: "other" }, 0, { all: true })).rejects.toThrow(
+      "not found",
+    );
+  });
+
   it("preserves ordered history after stopping and reconstructing the store", async () => {
     await store.saveEvents(owner, snapshot());
     await store.finish(owner, false);
