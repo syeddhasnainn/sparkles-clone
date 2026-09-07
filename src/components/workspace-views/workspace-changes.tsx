@@ -114,42 +114,21 @@ function ChangeFile({
     const timer = setTimeout(() => setCopied(false), 2000);
     return () => clearTimeout(timer);
   }, [copied]);
-  const filename = item.path.split("/").at(-1);
-  const directory = item.path.includes("/") ? item.path.slice(0, item.path.lastIndexOf("/")) : "";
-  const additions =
-    item.additions ??
-    (file?.before === null && file.after !== null && !file.binary ? lineCount(file.after) : null);
   return (
     <section ref={card} className="workspace-change-file" aria-label={item.path}>
-      <div className="workspace-change-heading">
-        <button
-          className="workspace-change-toggle"
-          aria-expanded={expanded}
-          onClick={() => setExpanded((value) => !value)}
-          title={item.path}
-        >
-          <AppIcon icon={ArrowDown01Icon} size={14} className={expanded ? "" : "is-collapsed"} />
-          <span className="workspace-change-filename">{filename}</span>
-          <span className="workspace-change-directory">{directory}</span>
-        </button>
-        <button
-          className="icon-button workspace-change-copy"
-          aria-label={copied ? "Path copied" : `Copy path ${item.path}`}
-          onClick={() => {
-            void navigator.clipboard
-              .writeText(item.path)
-              .then(() => setCopied(true))
-              .catch(() => setError("Could not copy the file path."));
-          }}
-        >
-          <AppIcon icon={Copy01Icon} size={14} />
-        </button>
-        <span className="changes-additions">+{additions ?? "?"}</span>
-        {(item.deletions === null || item.deletions > 0) && (
-          <span className="changes-deletions">−{item.deletions ?? "?"}</span>
-        )}
-        <span className={`workspace-change-badge file-status-${item.status}`}>{item.status}</span>
-      </div>
+      <ChangeHeading
+        item={item}
+        file={file}
+        expanded={expanded}
+        copied={copied}
+        onToggle={() => setExpanded((value) => !value)}
+        onCopy={() => {
+          void navigator.clipboard
+            .writeText(item.path)
+            .then(() => setCopied(true))
+            .catch(() => setError("Could not copy the file path."));
+        }}
+      />
       {expanded && (
         <div className="workspace-change-content">
           {error && (
@@ -174,4 +153,52 @@ function ChangeFile({
 
 function lineCount(text: string) {
   return text ? text.split("\n").length - Number(text.endsWith("\n")) : 0;
+}
+
+function ChangeHeading({
+  item,
+  file,
+  expanded,
+  copied,
+  onToggle,
+  onCopy,
+}: {
+  item: WorkspaceFiles["files"][number];
+  file: WorkspaceFile | null;
+  expanded: boolean;
+  copied: boolean;
+  onToggle: () => void;
+  onCopy: () => void;
+}) {
+  const filename = item.path.split("/").at(-1);
+  const directory = item.path.includes("/") ? item.path.slice(0, item.path.lastIndexOf("/")) : "";
+  const additions =
+    item.additions ??
+    (file?.before === null && file.after !== null && !file.binary ? lineCount(file.after) : null);
+  return (
+    <div className="workspace-change-heading">
+      <button
+        className="workspace-change-toggle"
+        aria-expanded={expanded}
+        onClick={onToggle}
+        title={item.path}
+      >
+        <AppIcon icon={ArrowDown01Icon} size={14} className={expanded ? "" : "is-collapsed"} />
+        <span className="workspace-change-filename">{filename}</span>
+        <span className="workspace-change-directory">{directory}</span>
+      </button>
+      <button
+        className="icon-button workspace-change-copy"
+        aria-label={copied ? "Path copied" : `Copy path ${item.path}`}
+        onClick={onCopy}
+      >
+        <AppIcon icon={Copy01Icon} size={14} />
+      </button>
+      <span className="changes-additions">+{additions ?? "?"}</span>
+      {(item.deletions === null || item.deletions > 0) && (
+        <span className="changes-deletions">−{item.deletions ?? "?"}</span>
+      )}
+      <span className={`workspace-change-badge file-status-${item.status}`}>{item.status}</span>
+    </div>
+  );
 }

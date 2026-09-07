@@ -296,6 +296,14 @@
   cursor: default;
   opacity: 0.45;
 }
+.workspace-preview-settings {
+  width: min(100%, 330px);
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+.workspace-preview-settings summary {
+  cursor: pointer;
+}
 .workspace-preview-start {
   width: min(100%, 330px);
   display: grid;

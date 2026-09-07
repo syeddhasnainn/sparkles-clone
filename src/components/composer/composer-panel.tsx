@@ -241,32 +241,14 @@ export function ComposerPanel({
                 </button>
               ))}
             </ComposerMenu>
-            <PermissionPicker
-              agent={selection?.agent}
-              modes={
-                permissionModes ??
-                (onSelectionChange &&
-                selection?.provider === "chatgpt" &&
-                selection.agent === "codex"
-                  ? {
-                      currentModeId: selection.permissionMode ?? "read-only",
-                      availableModes: permissionModeOptions,
-                    }
-                  : undefined)
-              }
-              onChange={
-                onPermissionModeChange ??
-                (onSelectionChange &&
-                selection?.provider === "chatgpt" &&
-                selection.agent === "codex"
-                  ? (permissionMode) => {
-                      onSelectionChange({ ...selection, permissionMode });
-                      return true;
-                    }
-                  : undefined)
-              }
-              disabled={busy || permissionModeDisabled}
-              unavailableReason={permissionModeUnavailableReason}
+            <ComposerPermissions
+              selection={selection}
+              permissionModes={permissionModes}
+              onPermissionModeChange={onPermissionModeChange}
+              onSelectionChange={onSelectionChange}
+              busy={busy}
+              permissionModeDisabled={permissionModeDisabled}
+              permissionModeUnavailableReason={permissionModeUnavailableReason}
               running={running}
             />
           </div>
@@ -336,5 +318,53 @@ export function ComposerPanel({
         </p>
       )}
     </div>
+  );
+}
+
+function ComposerPermissions({
+  selection,
+  permissionModes,
+  onPermissionModeChange,
+  onSelectionChange,
+  busy,
+  permissionModeDisabled,
+  permissionModeUnavailableReason,
+  running,
+}: Pick<
+  ComposerPanelProps,
+  | "selection"
+  | "permissionModes"
+  | "onPermissionModeChange"
+  | "onSelectionChange"
+  | "busy"
+  | "permissionModeDisabled"
+  | "permissionModeUnavailableReason"
+  | "running"
+>) {
+  return (
+    <PermissionPicker
+      agent={selection?.agent}
+      modes={
+        permissionModes ??
+        (onSelectionChange && selection?.provider === "chatgpt" && selection.agent === "codex"
+          ? {
+              currentModeId: selection.permissionMode ?? "read-only",
+              availableModes: permissionModeOptions,
+            }
+          : undefined)
+      }
+      onChange={
+        onPermissionModeChange ??
+        (onSelectionChange && selection?.provider === "chatgpt" && selection.agent === "codex"
+          ? (permissionMode) => {
+              onSelectionChange({ ...selection, permissionMode });
+              return true;
+            }
+          : undefined)
+      }
+      disabled={busy || permissionModeDisabled}
+      unavailableReason={permissionModeUnavailableReason}
+      running={running}
+    />
   );
 }

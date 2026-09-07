@@ -6,7 +6,7 @@ import { workspaceViewResultSchema } from "./workspace-view-contracts.ts";
 import type { WorkspaceViewResult } from "./workspace-view-contracts.ts";
 import type { BridgeRequest } from "./contracts.ts";
 
-async function serviceRequest(sandbox: Sandbox, input: string) {
+export async function serviceRequest(sandbox: Sandbox, input: string) {
   const process = await sandbox.exec(
     [
       "node",
@@ -30,7 +30,7 @@ async function serviceRequest(sandbox: Sandbox, input: string) {
   return output;
 }
 
-async function ensureServices(sandbox: Sandbox) {
+export async function ensureWorkspaceServices(sandbox: Sandbox) {
   await sandbox.filesystem.writeText(
     workspaceServicesSource,
     "/opt/sparkles/workspace-services.mjs",
@@ -84,7 +84,7 @@ export async function workspaceView(
   try {
     body = await serviceRequest(sandbox, input);
   } catch {
-    await ensureServices(sandbox);
+    await ensureWorkspaceServices(sandbox);
     body = await serviceRequest(sandbox, input);
   }
   const output = JSON.parse(body);

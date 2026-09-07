@@ -22,6 +22,7 @@ import { Route as AppSettingsIndexRouteImport } from './routes/app.settings.inde
 import { Route as AppSettingsAccountRouteImport } from './routes/app.settings.account'
 import { Route as AppSettingsIntegrationsRouteImport } from './routes/app.settings.integrations'
 import { Route as AppSettingsMemoriesRouteImport } from './routes/app.settings.memories'
+import { Route as AppSettingsProjectsRouteImport } from './routes/app.settings.projects'
 import { Route as AppTasksTaskIdRouteImport } from './routes/app.tasks.$taskId'
 import { Route as ApiWorkspacesIdOpenViewRouteImport } from './routes/api.workspaces.$id.open.$view'
 
@@ -90,6 +91,11 @@ const AppSettingsMemoriesRoute = AppSettingsMemoriesRouteImport.update({
   path: '/memories',
   getParentRoute: () => AppSettingsRoute,
 } as any)
+const AppSettingsProjectsRoute = AppSettingsProjectsRouteImport.update({
+  id: '/projects',
+  path: '/projects',
+  getParentRoute: () => AppSettingsRoute,
+} as any)
 const AppTasksTaskIdRoute = AppTasksTaskIdRouteImport.update({
   id: '/tasks/$taskId',
   path: '/tasks/$taskId',
@@ -114,6 +120,7 @@ export interface FileRoutesByFullPath {
   '/app/settings/account': typeof AppSettingsAccountRoute
   '/app/settings/integrations': typeof AppSettingsIntegrationsRoute
   '/app/settings/memories': typeof AppSettingsMemoriesRoute
+  '/app/settings/projects': typeof AppSettingsProjectsRoute
   '/app/tasks/$taskId': typeof AppTasksTaskIdRoute
   '/app/settings/': typeof AppSettingsIndexRoute
   '/api/workspaces/$id/open/$view': typeof ApiWorkspacesIdOpenViewRoute
@@ -129,6 +136,7 @@ export interface FileRoutesByTo {
   '/app/settings/account': typeof AppSettingsAccountRoute
   '/app/settings/integrations': typeof AppSettingsIntegrationsRoute
   '/app/settings/memories': typeof AppSettingsMemoriesRoute
+  '/app/settings/projects': typeof AppSettingsProjectsRoute
   '/app/tasks/$taskId': typeof AppTasksTaskIdRoute
   '/app/settings': typeof AppSettingsIndexRoute
   '/api/workspaces/$id/open/$view': typeof ApiWorkspacesIdOpenViewRoute
@@ -147,6 +155,7 @@ export interface FileRoutesById {
   '/app/settings/account': typeof AppSettingsAccountRoute
   '/app/settings/integrations': typeof AppSettingsIntegrationsRoute
   '/app/settings/memories': typeof AppSettingsMemoriesRoute
+  '/app/settings/projects': typeof AppSettingsProjectsRoute
   '/app/tasks/$taskId': typeof AppTasksTaskIdRoute
   '/app/settings/': typeof AppSettingsIndexRoute
   '/api/workspaces/$id/open/$view': typeof ApiWorkspacesIdOpenViewRoute
@@ -166,6 +175,7 @@ export interface FileRouteTypes {
     | '/app/settings/account'
     | '/app/settings/integrations'
     | '/app/settings/memories'
+    | '/app/settings/projects'
     | '/app/tasks/$taskId'
     | '/app/settings/'
     | '/api/workspaces/$id/open/$view'
@@ -181,6 +191,7 @@ export interface FileRouteTypes {
     | '/app/settings/account'
     | '/app/settings/integrations'
     | '/app/settings/memories'
+    | '/app/settings/projects'
     | '/app/tasks/$taskId'
     | '/app/settings'
     | '/api/workspaces/$id/open/$view'
@@ -198,6 +209,7 @@ export interface FileRouteTypes {
     | '/app/settings/account'
     | '/app/settings/integrations'
     | '/app/settings/memories'
+    | '/app/settings/projects'
     | '/app/tasks/$taskId'
     | '/app/settings/'
     | '/api/workspaces/$id/open/$view'
@@ -307,6 +319,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsMemoriesRouteImport
       parentRoute: typeof AppSettingsRoute
     }
+    '/app/settings/projects': {
+      id: '/app/settings/projects'
+      path: '/projects'
+      fullPath: '/app/settings/projects'
+      preLoaderRoute: typeof AppSettingsProjectsRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
     '/app/tasks/$taskId': {
       id: '/app/tasks/$taskId'
       path: '/tasks/$taskId'
@@ -328,6 +347,7 @@ interface AppSettingsRouteChildren {
   AppSettingsAccountRoute: typeof AppSettingsAccountRoute
   AppSettingsIntegrationsRoute: typeof AppSettingsIntegrationsRoute
   AppSettingsMemoriesRoute: typeof AppSettingsMemoriesRoute
+  AppSettingsProjectsRoute: typeof AppSettingsProjectsRoute
   AppSettingsIndexRoute: typeof AppSettingsIndexRoute
 }
 
@@ -335,6 +355,7 @@ const AppSettingsRouteChildren: AppSettingsRouteChildren = {
   AppSettingsAccountRoute: AppSettingsAccountRoute,
   AppSettingsIntegrationsRoute: AppSettingsIntegrationsRoute,
   AppSettingsMemoriesRoute: AppSettingsMemoriesRoute,
+  AppSettingsProjectsRoute: AppSettingsProjectsRoute,
   AppSettingsIndexRoute: AppSettingsIndexRoute,
 }
 

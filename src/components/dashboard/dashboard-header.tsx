@@ -1,9 +1,6 @@
 import { Tooltip, TooltipTrigger, TooltipContent } from "../ui/tooltip";
-import { createContext } from "react";
 import type { RefObject } from "react";
 import { DashboardIcon } from "./dashboard-icon";
-
-export const TaskHeaderContext = createContext<HTMLDivElement | null>(null);
 
 interface DashboardHeaderProps {
   contentRef: (element: HTMLDivElement | null) => void;

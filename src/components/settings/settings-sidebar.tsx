@@ -1,6 +1,29 @@
 import { Link } from "@tanstack/react-router";
 import ArrowLeft from "@hugeicons/core-free-icons/ArrowLeft02Icon";
 import { AppIcon } from "../ui/app-icon";
+import { useProjects } from "@/hooks/use-projects";
+
+function ProjectLinks({ onNavigate }: { onNavigate: () => void }) {
+  const { projects } = useProjects();
+  return (
+    <section>
+      <h2>Projects</h2>
+      {projects.map(({ repository }) => (
+        <Link
+          key={repository.id}
+          to="/app/settings/projects"
+          search={{ repository: repository.id }}
+          className="settings-nav-link"
+          activeProps={{ className: "active" }}
+          onClick={onNavigate}
+          title={repository.name}
+        >
+          <span className="truncate">{repository.name.split("/").at(-1)}</span>
+        </Link>
+      ))}
+    </section>
+  );
+}
 
 export function SettingsSidebar({ onNavigate }: { onNavigate: () => void }) {
   return (
@@ -59,6 +82,7 @@ export function SettingsSidebar({ onNavigate }: { onNavigate: () => void }) {
             </span>
           ))}
         </section>
+        <ProjectLinks onNavigate={onNavigate} />
       </nav>
     </aside>
   );

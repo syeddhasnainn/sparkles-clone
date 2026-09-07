@@ -1,88 +1,10 @@
-import { useEffect, useRef, useState } from "react";
 import { Button } from "../ui/button";
-import { useChatGPTConnection } from "../../hooks/use-chatgpt-connection";
-import {
-  startChatGPTConnection,
-  pollChatGPTConnection,
-  cancelChatGPTConnection,
-  disconnectChatGPTConnection,
-} from "../../lib/chatgpt/functions";
-
-type Challenge = Awaited<ReturnType<typeof startChatGPTConnection>>;
+import { useChatGPTSettings } from "./use-chatgpt-settings";
 
 export function ChatGPTSettings() {
-  const { connection, error: loadError, reload } = useChatGPTConnection();
-  const [challenge, setChallenge] = useState<Challenge | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const active = useRef<string | null>(null);
+  const { connection, loadError, challenge, busy, error, start, disconnect, cancel } =
+    useChatGPTSettings();
   const account = connection?.account;
-  useEffect(() => {
-    if (!challenge) return;
-    let cancelled = false;
-    let timer: ReturnType<typeof setTimeout>;
-    const poll = async () => {
-      if (cancelled) return;
-      if (Date.now() >= challenge.expiresAt) {
-        setError("This code expired. Connect again to get a new code.");
-        setChallenge(null);
-        return;
-      }
-      try {
-        const result = await pollChatGPTConnection({ data: { id: challenge.id } });
-        if (cancelled) return;
-        if (result.status === "connected") {
-          active.current = null;
-          setChallenge(null);
-          await reload();
-        } else timer = setTimeout(() => void poll(), challenge.intervalMs);
-      } catch (caught) {
-        if (!cancelled) {
-          setError(caught instanceof Error ? caught.message : "ChatGPT sign-in failed. Try again.");
-          setChallenge(null);
-        }
-      }
-    };
-    timer = setTimeout(() => void poll(), challenge.intervalMs);
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [challenge, reload]);
-  useEffect(
-    () => () => {
-      if (active.current)
-        void cancelChatGPTConnection({ data: { id: active.current } }).catch(() => undefined);
-    },
-    [],
-  );
-  const start = async () => {
-    setBusy(true);
-    setError(null);
-    try {
-      const next = await startChatGPTConnection();
-      active.current = next.id;
-      setChallenge(next);
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Could not connect ChatGPT.");
-    } finally {
-      setBusy(false);
-    }
-  };
-  const disconnect = async () => {
-    setBusy(true);
-    setError(null);
-    try {
-      await disconnectChatGPTConnection();
-      setChallenge(null);
-      active.current = null;
-      await reload();
-    } catch {
-      setError("Could not disconnect ChatGPT. Please retry.");
-    } finally {
-      setBusy(false);
-    }
-  };
   return (
     <section
       className="rounded-lg border border-border bg-card p-5 text-card-foreground"
@@ -95,25 +17,7 @@ export function ChatGPTSettings() {
         Connect once to use your ChatGPT subscription with OpenCode and Codex. Both share your
         account’s allowance.
       </p>
-      {!connection && !loadError && (
-        <p className="mt-4 text-sm" role="status">
-          Loading connection…
-        </p>
-      )}
-      {connection && !connection.configured && (
-        <p className="mt-4 text-sm">ChatGPT connections aren’t available yet.</p>
-      )}
-      {account && (
-        <div className="mt-4 text-[13px]">
-          <p>
-            {account.email || "ChatGPT account"}
-            {account.plan ? ` · ${account.plan}` : ""}
-          </p>
-          <p className="text-muted-foreground">
-            {account.reconnectRequired ? "Reconnect to restore access" : "Connected"}
-          </p>
-        </div>
-      )}
+      <ConnectionStatus connection={connection} loadError={loadError} />
       {challenge ? (
         <div className="mt-4 space-y-3" role="status">
           <p className="text-[13px]">Open ChatGPT and enter this code:</p>
@@ -129,17 +33,7 @@ export function ChatGPTSettings() {
             >
               Authorize in ChatGPT
             </a>
-            <Button
-              variant="outline"
-              onClick={() => {
-                const id = challenge.id;
-                active.current = null;
-                setChallenge(null);
-                void cancelChatGPTConnection({ data: { id } }).catch(() =>
-                  setError("Could not cancel sign-in."),
-                );
-              }}
-            >
+            <Button variant="outline" onClick={cancel}>
               Cancel
             </Button>
           </div>
@@ -179,5 +73,35 @@ export function ChatGPTSettings() {
         </p>
       )}
     </section>
+  );
+}
+
+function ConnectionStatus({
+  connection,
+  loadError,
+}: Pick<ReturnType<typeof useChatGPTSettings>, "connection" | "loadError">) {
+  const account = connection?.account;
+  return (
+    <>
+      {!connection && !loadError && (
+        <p className="mt-4 text-sm" role="status">
+          Loading connection…
+        </p>
+      )}
+      {connection && !connection.configured && (
+        <p className="mt-4 text-sm">ChatGPT connections aren’t available yet.</p>
+      )}
+      {account && (
+        <div className="mt-4 text-[13px]">
+          <p>
+            {account.email || "ChatGPT account"}
+            {account.plan ? ` · ${account.plan}` : ""}
+          </p>
+          <p className="text-muted-foreground">
+            {account.reconnectRequired ? "Reconnect to restore access" : "Connected"}
+          </p>
+        </div>
+      )}
+    </>
   );
 }

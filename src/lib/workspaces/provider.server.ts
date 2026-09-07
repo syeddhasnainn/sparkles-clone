@@ -2,10 +2,19 @@ import { issueModelGateway, revokeModelGateway } from "./model-gateway";
 import { requireChatGPTModel } from "../chatgpt/models";
 import { z } from "zod";
 import { createChatGPTService } from "../chatgpt/service";
-import { bridgeResponseSchema, checkpointMetadataSchema } from "../../../bridge/contracts";
+import { createProjectEnvironmentStore } from "../projects/store";
+import {
+  bridgeResponseSchema,
+  browserProfileArchiveMetadataSchema,
+  checkpointMetadataSchema,
+} from "../../../bridge/contracts";
 import type {
   BridgeRequest,
   BridgeResponse,
+  BrowserProfileArchive,
+  BrowserProfileCaptureRequest,
+  BrowserProfileResetRequest,
+  BrowserProfileRestoreRequest,
   CheckpointArchive,
   CheckpointRequest,
   RestoreRequest,
@@ -15,6 +24,12 @@ export interface WorkspaceProvider {
   execute(request: BridgeRequest): Promise<BridgeResponse>;
   checkpoint?(request: CheckpointRequest): Promise<CheckpointArchive>;
   restore?(request: RestoreRequest, body: ReadableStream<Uint8Array>): Promise<void>;
+  captureBrowser?(request: BrowserProfileCaptureRequest): Promise<BrowserProfileArchive | null>;
+  restoreBrowser?(
+    request: BrowserProfileRestoreRequest,
+    body: ReadableStream<Uint8Array>,
+  ): Promise<void>;
+  resetBrowser?(request: BrowserProfileResetRequest): Promise<void>;
 }
 
 export function containerProvider(
@@ -40,6 +55,27 @@ export function containerProvider(
     async execute(request) {
       const runId = request.name.slice("sparkles-".length);
       if (request.action === "stop") await revokeModelGateway(environment.DB, runId);
+      if ((request.action === "allocate" || request.action === "create") && request.repository) {
+        const owner = z
+          .object({ user_id: z.string() })
+          .parse(
+            await environment.DB.prepare(
+              "SELECT user_id FROM agent_sessions WHERE task_id = ? AND run_id = ?",
+            )
+              .bind(taskId, runId)
+              .first(),
+          );
+        const saved = await createProjectEnvironmentStore(
+          environment.DB,
+          environment.GITHUB_TOKEN_ENCRYPTION_KEY,
+        ).read(owner.user_id, request.repository.id);
+        request = {
+          ...request,
+          projectEnvironment: Object.fromEntries(
+            saved.variables.map(({ name, value }) => [name, value]),
+          ),
+        };
+      }
       if (request.action === "create" || request.action === "start") {
         request = {
           ...request,
@@ -112,6 +148,37 @@ export function containerProvider(
           "Content-Length": String(request.checkpoint.size),
           "X-Sparkles-Restore": encodeURIComponent(JSON.stringify(request)),
         }),
+      );
+    },
+    async captureBrowser(request) {
+      const response = await call(
+        "/browser/capture",
+        JSON.stringify(request),
+        new Headers({ "Content-Type": "application/json" }),
+      );
+      if (response.status === 204) return null;
+      const metadata = browserProfileArchiveMetadataSchema.parse(
+        JSON.parse(decodeURIComponent(response.headers.get("X-Sparkles-Browser-Profile") || "")),
+      );
+      if (!response.body) throw new Error("Browser profile transfer is empty.");
+      return { metadata, body: response.body };
+    },
+    async restoreBrowser(request, body) {
+      await call(
+        "/browser/restore",
+        body,
+        new Headers({
+          "Content-Type": "application/gzip",
+          "Content-Length": String(request.profile.size),
+          "X-Sparkles-Browser-Profile": encodeURIComponent(JSON.stringify(request)),
+        }),
+      );
+    },
+    async resetBrowser(request) {
+      await call(
+        "/browser/reset",
+        JSON.stringify(request),
+        new Headers({ "Content-Type": "application/json" }),
       );
     },
   };

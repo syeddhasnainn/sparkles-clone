@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { projectEnvironmentSchema } from "./project-environment.ts";
 import { agentSelectionSchema, reasoningEffortSchema } from "./agent-selection.ts";
 import type { AgentSelection } from "./agent-selection.ts";
 import { permissionModeSchema, permissionModesSchema } from "./permission-modes.ts";
@@ -7,11 +8,14 @@ import {
   workspaceViewResultSchema,
 } from "./workspace-view-contracts.ts";
 
-export const workspaceIdleTimeoutMs = 60_000;
+export const workspaceIdleTimeoutMs = 10 * 60_000;
 export const workspaceLifetimeMs = 60 * 60 * 1000;
 export const checkpointIntervalMs = 60_000;
 export const checkpointGraceMs = 300_000;
 export const maximumCheckpointBytes = 512 * 1024 * 1024;
+export const browserProfileDirectory = "/tmp/sparkles-browser-profile";
+export const maximumBrowserProfileBytes = 16 * 1024 * 1024;
+export const maximumExpandedBrowserProfileBytes = 128 * 1024 * 1024;
 export const sandboxNameSchema = z.string().regex(/^sparkles-[a-f0-9-]{36}$/);
 
 export const repositorySchema = z.object({
@@ -77,13 +81,36 @@ export const restoreRequestSchema = z.object({
   checkpoint: checkpointMetadataSchema,
   cursor: z.number().int().nonnegative(),
 });
+export const browserProfileArchiveMetadataSchema = z.object({
+  id: z.uuid(),
+  createdAt: z.number().int().positive(),
+  size: z.number().int().positive().max(maximumBrowserProfileBytes),
+  sha256: z.string().regex(/^[a-f0-9]{64}$/),
+});
+export const browserProfileCaptureRequestSchema = z.object({
+  name: sandboxNameSchema,
+  id: z.uuid(),
+});
+export const browserProfileRestoreRequestSchema = z.object({
+  name: sandboxNameSchema,
+  profile: browserProfileArchiveMetadataSchema,
+});
+export const browserProfileResetRequestSchema = z.object({ name: sandboxNameSchema });
 export type AgentEvent = z.infer<typeof agentEventSchema>;
 export type AgentStatus = z.infer<typeof agentStatusSchema>;
 export type CheckpointMetadata = z.infer<typeof checkpointMetadataSchema>;
 export type CheckpointRequest = z.infer<typeof checkpointRequestSchema>;
 export type RestoreRequest = z.infer<typeof restoreRequestSchema>;
+export type BrowserProfileArchiveMetadata = z.infer<typeof browserProfileArchiveMetadataSchema>;
+export type BrowserProfileCaptureRequest = z.infer<typeof browserProfileCaptureRequestSchema>;
+export type BrowserProfileRestoreRequest = z.infer<typeof browserProfileRestoreRequestSchema>;
+export type BrowserProfileResetRequest = z.infer<typeof browserProfileResetRequestSchema>;
 export interface CheckpointArchive {
   metadata: CheckpointMetadata;
+  body: ReadableStream<Uint8Array>;
+}
+export interface BrowserProfileArchive {
+  metadata: BrowserProfileArchiveMetadata;
   body: ReadableStream<Uint8Array>;
 }
 export type AgentCommand = z.infer<typeof agentCommandSchema>;
@@ -114,6 +141,7 @@ export const bridgeRequestSchema = z.discriminatedUnion("action", [
   }),
   z.object({
     action: z.literal("create"),
+    projectEnvironment: projectEnvironmentSchema.optional(),
     gateway: modelGatewaySchema.optional(),
     name: sandboxNameSchema,
     repository: repositorySchema,
@@ -132,6 +160,8 @@ export const bridgeRequestSchema = z.discriminatedUnion("action", [
   }),
   z.object({
     action: z.enum(["allocate", "start", "stop", "status"]),
+    repository: repositorySchema.optional(),
+    projectEnvironment: projectEnvironmentSchema.optional(),
     gateway: modelGatewaySchema.optional(),
     name: sandboxNameSchema,
   }),
@@ -163,6 +193,7 @@ export interface Workspace {
   commit: string | null;
   error: string | null;
   checkpointAt?: number | null;
+  browserSessionError?: string | null;
   canResume?: boolean;
   restoring?: boolean;
 }

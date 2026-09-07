@@ -3,7 +3,7 @@ import { createServer, request } from "node:http";
 import { createHash } from "node:crypto";
 import { spawn } from "node:child_process";
 import type { ChildProcess } from "node:child_process";
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync, symlinkSync } from "node:fs";
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { z } from "zod";
@@ -68,6 +68,7 @@ async function exchange(token: string, port = preview) {
 beforeAll(async () => {
   root = mkdtempSync(join(tmpdir(), "sparkles-services-"));
   mkdirSync(join(root, ".git"));
+  writeFileSync(join(root, "index.html"), "<h1>Preview test</h1>");
   writeFileSync(join(root, "services.mjs"), workspaceServicesSource);
   [control, preview, desktop] = await Promise.all([
     availablePort(),
@@ -79,6 +80,9 @@ beforeAll(async () => {
   child = spawn(process.execPath, [join(root, "services.mjs")], {
     env: {
       ...process.env,
+      DEMO_PROJECT_VALUE: "preview-env-check",
+      SPARKLES_MODEL_GATEWAY_TOKEN: "must-not-inherit",
+      SPARKLES_PROJECT_ENV_NAMES: JSON.stringify(["DEMO_PROJECT_VALUE"]),
       SPARKLES_WORKSPACE_DIR: root,
       SPARKLES_VIEWS_CONTROL_PORT: String(control),
       SPARKLES_PREVIEW_GATEWAY_PORT: String(preview),
@@ -106,6 +110,22 @@ afterAll(async () => {
   upstream.closeAllConnections();
   await new Promise<void>((resolve) => upstream.close(() => resolve()));
   rmSync(root, { recursive: true, force: true });
+});
+
+it("registers a preview title without restarting an already attached app", async () => {
+  const response = await command({
+    kind: "preview-start",
+    command: "unused",
+    port: upstreamPort,
+    title: "Sparkles dev server",
+  });
+  expect(await response.json()).toMatchObject({
+    preview: { title: "Sparkles dev server", status: "ready", managed: false },
+  });
+  expect(JSON.parse(readFileSync(join(root, ".git/sparkles/preview.json"), "utf8"))).toMatchObject({
+    title: "Sparkles dev server",
+    port: upstreamPort,
+  });
 });
 
 it("protects the tunnel and issues one-time partitioned sessions", async () => {
@@ -250,4 +270,37 @@ it("serves public static assets but denies private files, encoded paths, and sym
     await command({ kind: "preview-stop" });
     rmSync(outside, { recursive: true, force: true });
   }
+});
+
+it("starts one preview process for concurrent requests and passes only project variables", async () => {
+  await command({ kind: "preview-stop" });
+  const port = await availablePort();
+  writeFileSync(
+    join(root, "env-preview.cjs"),
+    String.raw`
+    const fs = require('node:fs');
+    fs.appendFileSync('launch-count.txt', 'started\n');
+    require('node:http').createServer((request, response) => {
+      response.end(JSON.stringify({project: process.env.DEMO_PROJECT_VALUE === 'preview-env-check', gatewayAbsent: !process.env.SPARKLES_MODEL_GATEWAY_TOKEN}));
+    }).listen(Number(process.env.PORT), '127.0.0.1');
+  `,
+  );
+  const input = { kind: "preview-start", command: "node env-preview.cjs", port };
+  const responses = await Promise.all([command(input), command(input)]);
+  expect(responses.every((response) => response.ok)).toBe(true);
+  for (let attempt = 0; attempt < 50; attempt++) {
+    try {
+      const response = await fetch(`http://127.0.0.1:${port}`);
+      expect(await response.json()).toEqual({ project: true, gatewayAbsent: true });
+      break;
+    } catch (error) {
+      if (attempt === 49) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+  }
+  expect(readFileSync(join(root, "launch-count.txt"), "utf8")).toBe("started\n");
+  await command({ kind: "preview-stop" });
+  expect(await (await command({ kind: "services" })).json()).toMatchObject({
+    preview: { status: "stopped" },
+  });
 });

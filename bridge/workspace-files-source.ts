@@ -21,8 +21,7 @@ function git(args, maxBuffer = 8 * 1024 * 1024) {
     cwd: root, maxBuffer, timeout: 15000, env: {...process.env, GIT_OPTIONAL_LOCKS: '0'}, stdio: ['ignore', 'pipe', 'pipe'],
   });
 }
-function readFile(name, base) {
-  const full = safe(name);
+function readRepositoryFile({ name, full }, base) {
   let before = null;
   let after = null;
   let tooLarge = false;
@@ -71,7 +70,9 @@ process.stdin.on('end', () => {
     const base = request.command.base === 'head' ? 'HEAD' : request.commit;
     if (base !== 'HEAD' && !/^[a-f0-9]{40,64}$/.test(base || '')) throw new Error('Task base is unavailable');
     git(['rev-parse','--verify',base + '^{commit}']);
-    const result = request.command.kind === 'file' ? readFile(request.command.path, base) : listFiles(request.command, base);
+    const command = request.command;
+    const file = command.kind === 'file' ? { name: command.path, full: safe(command.path) } : null;
+    const result = file ? readRepositoryFile(file, base) : listFiles(command, base);
     process.stdout.write(JSON.stringify(result));
   } catch { process.stderr.write('Could not read repository files.'); process.exitCode = 1; }
 });

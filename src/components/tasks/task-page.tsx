@@ -1,7 +1,7 @@
 import { agentName } from "../../../bridge/agent-selection";
-import { useContext } from "react";
+import { useContext, useRef } from "react";
 import { createPortal } from "react-dom";
-import { TaskHeaderContext } from "../dashboard/dashboard-header";
+import { TaskHeaderContext } from "../dashboard/task-header-context";
 import { useTaskAgent } from "@/hooks/use-task-agent";
 import { useWorkspaces } from "@/hooks/use-workspaces";
 import type { AgentSnapshot, Workspace } from "../../../bridge/contracts";
@@ -10,12 +10,38 @@ import { Conversation } from "./task-conversation";
 import { Permissions } from "./task-permissions";
 import { Followup } from "./task-followup";
 import { TaskWorkbench } from "../workspace-views/task-workbench";
+import { previewAgentPrompt } from "../workspace-views/preview-agent-prompt";
 
 export function TaskPage({ taskId }: { taskId: string }) {
   const headerElement = useContext(TaskHeaderContext);
-  const { data, error } = useWorkspaces();
+  const { data, error, resume } = useWorkspaces();
   const workspace = data?.workspaces.find((item) => item.id === taskId);
   const agent = useTaskAgent(taskId, workspace?.status === "ready");
+  const previewRequest = useRef<string | null>(null);
+  const previewSubmitting = useRef(false);
+  const canStartPreview =
+    Boolean(workspace) &&
+    !agent.sending &&
+    !agent.awaitingPrompt &&
+    (workspace?.status === "ready"
+      ? workspace.phase === "task" && agent.snapshot?.status === "idle"
+      : Boolean(workspace?.canResume));
+  const startPreview = async () => {
+    if (!canStartPreview || previewSubmitting.current) return false;
+    previewSubmitting.current = true;
+    previewRequest.current ??= crypto.randomUUID();
+    try {
+      const sent = await agent.send({
+        kind: "prompt",
+        requestId: previewRequest.current,
+        prompt: previewAgentPrompt,
+      });
+      if (sent) previewRequest.current = null;
+      return sent;
+    } finally {
+      previewSubmitting.current = false;
+    }
+  };
   const title = workspace?.prompt || "Loading task…";
   const titleCharacters = Array.from(title);
   const headerTitle =
@@ -25,6 +51,12 @@ export function TaskPage({ taskId }: { taskId: string }) {
       taskId={taskId}
       sandboxId={workspace?.sandboxId}
       ready={workspace?.status === "ready"}
+      status={workspace?.status}
+      canResume={Boolean(workspace?.canResume)}
+      onStart={() => resume(taskId)}
+      onStartPreview={startPreview}
+      canStartPreview={canStartPreview}
+      agentWorking={agent.sending || agent.awaitingPrompt || agent.snapshot?.status === "running"}
     >
       <section className="task-page">
         {headerElement &&
@@ -42,21 +74,16 @@ export function TaskPage({ taskId }: { taskId: string }) {
             {(error || workspace?.error || agent.error) && (
               <p role="alert">{error || workspace?.error || agent.error}</p>
             )}
+            {workspace?.browserSessionError && (
+              <p className="workspace-error" role="alert">
+                {workspace.browserSessionError}
+              </p>
+            )}
             <Conversation
               agentKind={workspace?.selection?.agent}
               events={agent.events}
               initialPrompt={workspace?.prompt}
-              preparationLabel={
-                workspace?.status === "provisioning"
-                  ? workspace.restoring
-                    ? "Restoring your workspace…"
-                    : "Preparing your workspace…"
-                  : workspace?.status === "ready" &&
-                      workspace.phase !== "task" &&
-                      agent.snapshot?.status !== "failed"
-                    ? "Starting the agent…"
-                    : undefined
-              }
+              preparationLabel={preparationLabel(workspace, agent.snapshot)}
               streaming={
                 agent.awaitingPrompt ||
                 (workspace?.status === "ready" && agent.snapshot?.status === "running")
@@ -102,4 +129,12 @@ function statusLabel(workspace: Workspace | undefined, snapshot: AgentSnapshot |
   if (snapshot?.status === "failed")
     return `${agentName(workspace.selection?.agent)} stopped unexpectedly`;
   return `Starting ${agentName(workspace.selection?.agent)}…`;
+}
+
+function preparationLabel(workspace: Workspace | undefined, snapshot: AgentSnapshot | null) {
+  if (workspace?.status === "provisioning")
+    return workspace.restoring ? "Restoring your workspace…" : "Preparing your workspace…";
+  if (workspace?.status === "ready" && workspace.phase !== "task" && snapshot?.status !== "failed")
+    return "Starting the agent…";
+  return undefined;
 }

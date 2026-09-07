@@ -1,3 +1,5 @@
+import { previewInstructions } from "./preview-instructions.ts";
+
 export const agentRunnerSource = String.raw`
 import { spawn } from 'node:child_process';
 import { Readable, Writable } from 'node:stream';
@@ -30,11 +32,19 @@ let checkpointId;
 let protocolTurn;
 let permissionModes;
 let changingMode = false;
+let previewFingerprint = previous.previewFingerprint;
+let checkingPreview = false;
+const previewContext = ${JSON.stringify(previewInstructions)};
+const mcpServers = [{ name: 'computer', command: '/usr/bin/python3', args: ['/opt/sparkles/computer-mcp.py'], env: [{ name: 'SPARKLES_STATE_DIR', value: stateDirectory }, { name: 'SPARKLES_WORKSPACE_DIR', value: workspaceDirectory }] }];
 const permissionModeIds = ['read-only', 'agent', 'agent-full-access'];
 const persist = () => {
-  const value = { version: 1, agent: agentKind, sessionId, sequence, acknowledged, requests: [...requests], activeRequest, status, permissionMode: permissionModes?.currentModeId ?? previous.permissionMode };
+  const value = { version: 1, agent: agentKind, sessionId, sequence, acknowledged, requests: [...requests], activeRequest, status, previewFingerprint, permissionMode: permissionModes?.currentModeId ?? previous.permissionMode };
   writeFileSync(statePath + '.tmp', JSON.stringify(value), { mode: 0o600, flush: true });
   renameSync(statePath + '.tmp', statePath);
+  const controlAllowed = agentKind !== 'codex' || ['agent', 'agent-full-access'].includes(permissionModes?.currentModeId);
+  const policyPath = join(stateDirectory, 'computer-policy.json');
+  writeFileSync(policyPath + '.tmp', JSON.stringify({ controlAllowed }), { mode: 0o600 });
+  renameSync(policyPath + '.tmp', policyPath);
 };
 const emit = (type, data) => {
   const event = { id: ++sequence, type, data, timestamp: Date.now() };
@@ -42,6 +52,32 @@ const emit = (type, data) => {
   events.push(event);
   persist();
 };
+const publishPreview = async () => {
+  if (checkingPreview || status === 'checkpointing' || loadingSession) return;
+  checkingPreview = true;
+  try {
+    const response = await fetch('http://127.0.0.1:' + (process.env.SPARKLES_VIEWS_CONTROL_PORT || 4098), {
+      method: 'POST',
+      body: JSON.stringify({kind:'services'}),
+      signal: AbortSignal.timeout(2000),
+    });
+    if (!response.ok) return;
+    const result = await response.json();
+    if (status === 'checkpointing' || loadingSession || result.kind !== 'services') return;
+    const preview = result.preview;
+    if (preview?.status !== 'ready') { previewFingerprint = undefined; return; }
+    if (!Number.isInteger(preview.port) || preview.port < 1024 || preview.port > 65535) return;
+    const title = typeof preview.title === 'string' && preview.title.trim() ? preview.title.slice(0,100) : 'App preview';
+    const fingerprint = JSON.stringify([preview.port, preview.command, title]);
+    if (previewFingerprint === fingerprint) return;
+    previewFingerprint = fingerprint;
+    emit('preview', { title, port: preview.port });
+  } catch {
+  } finally {
+    checkingPreview = false;
+  }
+};
+setInterval(() => void publishPreview(), 4000).unref();
 const publishPermissionModes = () => {
   if (permissionModes) emit('permission_modes', permissionModes);
 };
@@ -105,7 +141,7 @@ const ready = (async () => {
     if (!initialized.agentCapabilities.loadSession) throw new Error('Agent cannot load saved sessions');
     loadingSession = true;
     try {
-      const session = await agent.request('session/load', { sessionId, cwd: workspaceDirectory, mcpServers: [] });
+      const session = await agent.request('session/load', { sessionId, cwd: workspaceDirectory, mcpServers });
       await restorePermissionModes(session.modes);
     }
     finally { loadingSession = false; }
@@ -115,7 +151,7 @@ const ready = (async () => {
       emit('interrupted', { message: 'The previous turn was interrupted. Inspect the restored files before repeating a tool operation.', requestId: previous.activeRequest });
     }
   } else {
-    const session = await agent.request('session/new', { cwd: workspaceDirectory, mcpServers: [] });
+    const session = await agent.request('session/new', { cwd: workspaceDirectory, mcpServers });
     sessionId = session.sessionId;
     await restorePermissionModes(session.modes);
     status = 'idle';
@@ -184,8 +220,8 @@ createServer(async (req, res) => {
         activeRequest = command.requestId;
         status = 'running';
         emit('user', { text: command.prompt, requestId: activeRequest });
-        protocolTurn = agent.request('session/prompt', { sessionId, prompt: [{ type: 'text', text: command.prompt }] })
-          .then((result) => { status = 'idle'; emit('complete', { ...result, requestId: activeRequest }); })
+        protocolTurn = agent.request('session/prompt', { sessionId, prompt: [{ type: 'text', text: previewContext }, { type: 'text', text: command.prompt }] })
+          .then(async (result) => { await publishPreview(); status = 'idle'; emit('complete', { ...result, requestId: activeRequest }); })
           .catch(() => { status = 'failed'; emit('error', { message: 'The agent request failed. Review the last tool result before continuing.', requestId: activeRequest }); })
           .finally(() => { resolvePermissions(); activeRequest = undefined; protocolTurn = undefined; persist(); });
       }

@@ -1,3 +1,4 @@
+import { toolOutput } from "./tool-output";
 import { AppIcon } from "../ui/app-icon";
 import { useId, useState } from "react";
 import ChevronDown from "@hugeicons/core-free-icons/ArrowDown01Icon";
@@ -118,36 +119,30 @@ function ToolRow({ call }: { call: ToolCall }) {
   );
 }
 
-function detailText(call: ToolCall, field: "input" | "output") {
-  const value = call[field];
-  const text = z.string().safeParse(value);
-  if (text.success) return text.data;
-  const content = z
-    .array(
-      z.object({
-        type: z.literal("content"),
-        content: z.object({ type: z.literal("text"), text: z.string() }),
-      }),
-    )
-    .safeParse(value);
-  if (content.success) return content.data.map((item) => item.content.text).join("\n");
-  return JSON.stringify(value, null, 2);
-}
-
 function ToolDetails({ call }: { call: ToolCall }) {
+  const output = toolOutput(call);
   return (
     <div className="tool-chip-details">
       <p>{call.title}</p>
       {call.input !== undefined && (
         <>
           <h3>Input</h3>
-          <pre>{detailText(call, "input")}</pre>
+          <pre>{toolOutput({ output: call.input }).text}</pre>
         </>
       )}
       {call.output !== undefined && (
         <>
           <h3>Output</h3>
-          <pre>{detailText(call, "output")}</pre>
+          {output.text && <pre>{output.text}</pre>}
+          {output.images.map((source, index) => (
+            <img
+              key={index}
+              src={source}
+              alt={`Computer screenshot ${index + 1}`}
+              className="max-h-[36rem] w-full rounded-md object-contain"
+              loading="lazy"
+            />
+          ))}
         </>
       )}
       {call.input === undefined && call.output === undefined && (

@@ -18,6 +18,11 @@ The development server runs at http://localhost:3000 using the Cloudflare Worker
 - `pnpm run build`: production build
 - `pnpm run bridge:install`: install the Node service dependencies
 - `pnpm run preview`: preview the production build
+
+Sandbox Preview uses the task's coding agent to start the app. **Start preview** sends an explicit request to inspect repository instructions, set up dependencies and system tools, resolve startup failures, and verify the app. **Fix with agent** uses the same flow after a failure. Progress and questions appear in the conversation. Opening the Preview tab only polls the service; it does not install packages or launch guessed commands.
+
+The agent receives platform preview instructions with every turn, so a normal chat request can also start the app. It uses the sandbox's preview supervisor on loopback port 4098 to inspect logs and start a persistent development server with the project's actual command, port, and title. When the supervisor reports ready, the runner records a durable preview event and the conversation displays an **Open preview** card. The card opens the Preview panel; it never sends users to localhost on their own computer. Server readiness does not verify login or every app feature. Explicit commands remain available in Preview settings. Startup retries retain bounded failure logs, and old generated dependency-install commands are cleared when the sandbox service restarts.
+
 - `pnpm run lint`: run Oxlint
 - `pnpm run lint:fix`: apply lint fixes
 - `pnpm run format`: format with Oxfmt
@@ -72,7 +77,7 @@ Register a GitHub App with these local settings:
 - Repository permissions: Metadata read-only and Contents read-only. The sandbox can edit its local checkout; GitHub pushes require separate write access.
 - Allow installation on any account if other users will try the demo.
 
-Add the app's client ID, client secret, and slug to `.env.local`. Set `GITHUB_REDIRECT_URI` to the callback URL above. Generate `GITHUB_TOKEN_ENCRYPTION_KEY` with `openssl rand -hex 32`. Keep this key stable: it encrypts credentials in D1, and replacing it requires reconnecting existing accounts. Never put GitHub tokens in client code or browser storage.
+Add the app's client ID, client secret, and slug to `.env.local`. Set `GITHUB_REDIRECT_URI` to the callback URL above. Generate `GITHUB_TOKEN_ENCRYPTION_KEY` with `openssl rand -hex 32`. Keep this key stable: it encrypts credentials and project environment variables in D1, and saved cloud-browser profiles in R2. Replacing it requires reconnecting existing accounts, re-entering saved project variables, and clearing saved cloud-browser sessions. Never put GitHub tokens in client code or browser storage.
 
 OAuth state is single-use and bound to the signed-in WorkOS user and session. The callback also verifies a browser cookie and uses PKCE. GitHub access and refresh tokens are encrypted with AES-GCM using the WorkOS user ID as authenticated context. A database lock serializes token refresh and disconnect operations. Repository listing uses user access tokens, so GitHub enforces the intersection of the user's access and the app's installed repositories.
 
@@ -125,6 +130,10 @@ The Durable Object coordinates background saves even with every browser tab clos
 
 Checkpoints contain the Git checkout (including uncommitted and untracked files), runner session state, and consistent SQLite backups of the selected agent’s data. Provider authentication files are excluded. Untracked `node_modules` directories are omitted and may need reinstalling after resume. Archives are limited to 512 MiB compressed and 2 GiB expanded. R2 upload and integrity validation must succeed before the D1 checkpoint pointer advances; the last three successful versions are retained. Checkpoint storage is private and server-mediated.
 
+Cloud-browser cookies and site storage are saved separately per user and project, encrypted in R2, and restored into new or resumed tasks. Profiles save every minute and before an orderly stop; unexpected sandbox loss preserves the last completed save. Archives omit caches and are limited to 16 MiB compressed and 128 MiB expanded. Concurrent tasks cannot overwrite a newer saved profile with stale browser data; the task displays a warning when its browser changes cannot be saved.
+
+Account settings can clear saved cloud-browser sessions and reset browsers in running tasks. Clearing invalidates older saves so they cannot restore cleared logins. Failed resets are reported and block that workspace from saving browser data until clearing succeeds. This clears cloud-browser data without revoking website sessions on other devices. Apply database migrations with `pnpm db:migrate` for local development.
+
 **Resume workspace** rechecks repository access, allocates a new sandbox, verifies and restores the archive, then calls ACP `session/load` with the saved session ID. Conversation history remains in D1 and continues with monotonic event IDs. Resume does not rerun the initial prompt or interrupted tools; send a follow-up to continue. Tasks created before persistence was installed have no recoverable checkpoint unless one was saved while their sandbox was still running.
 
 Protocol references: [ACP introduction](https://agentclientprotocol.com/get-started/introduction), [OpenCode ACP support](https://opencode.ai/docs/acp/).
@@ -150,3 +159,7 @@ React Doctor is pinned as a development dependency. Run `pnpm run react:doctor` 
 Dependency installs use a 24-hour minimum release age and reject trust downgrades. Exact-version exceptions cover the legacy publication metadata for `semver@6.3.1` (Babel) and `undici-types@6.21.0` (Node 22 types); future versions remain subject to the policy.
 
 Codex permission modes can be selected from the composer before creation or changed in a running task. Standard maps to `read-only`, Auto to `agent` (Codex auto review), and Full access to `agent-full-access` inside the isolated workspace. The runner validates choices against the native modes, sends `session/set_mode`, journals the confirmed mode, and reapplies it on restore. Changes affect subsequent turns and do not resolve pending approvals. Older running workspaces must stop and resume to load the updated runner. OpenCode remains in Manual mode; planning is a separate agent capability.
+
+### Project environment variables
+
+Settings → Projects lets each user manage variables for a GitHub repository. Values are encrypted in D1, masked in the editor, and injected through Modal Secrets when a new or resumed sandbox is allocated. Running workspaces keep their current values until the next start. Paste `.env` contents into a name field to import multiple values; runtime-reserved names are rejected. Apply migration `0005_project_environments.sql` alongside the application update.
