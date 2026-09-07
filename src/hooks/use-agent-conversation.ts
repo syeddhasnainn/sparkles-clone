@@ -92,6 +92,8 @@ export function useAgentConversation(
     error,
     sending,
     send,
-    awaitingPrompt: Boolean(unconfirmed),
+    awaitingPrompt:
+      Boolean(unconfirmed) &&
+      !["stopped", "interrupted", "failed"].includes(snapshot?.status ?? "starting"),
   };
 }

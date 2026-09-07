@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { githubCredentialsSchema } from "./github-credentials.ts";
 import { projectEnvironmentSchema } from "./project-environment.ts";
 import { agentSelectionSchema, reasoningEffortSchema } from "./agent-selection.ts";
 import type { AgentSelection } from "./agent-selection.ts";
@@ -143,6 +144,7 @@ export const bridgeRequestSchema = z.discriminatedUnion("action", [
     action: z.literal("create"),
     projectEnvironment: projectEnvironmentSchema.optional(),
     gateway: modelGatewaySchema.optional(),
+    github: githubCredentialsSchema.optional(),
     name: sandboxNameSchema,
     repository: repositorySchema,
     token: z.string().min(1).max(2048),
@@ -163,6 +165,7 @@ export const bridgeRequestSchema = z.discriminatedUnion("action", [
     repository: repositorySchema.optional(),
     projectEnvironment: projectEnvironmentSchema.optional(),
     gateway: modelGatewaySchema.optional(),
+    github: githubCredentialsSchema.optional(),
     name: sandboxNameSchema,
   }),
 ]);

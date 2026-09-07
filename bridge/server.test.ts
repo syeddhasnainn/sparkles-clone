@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { createBridgeServer } from "./server";
+import { bridgeProtocolVersion, requireBridgeCompatibility } from "./protocol";
 
 const execute = vi.fn(async () => ({ running: false, sandboxId: null, commit: null }));
 const server = createBridgeServer({ execute }, "test-access-token");
@@ -19,6 +20,17 @@ afterAll(async () => {
 });
 
 describe("local bridge access", () => {
+  it("reports compatibility only to authenticated callers", async () => {
+    const endpoint = new URL("/capabilities", url);
+    expect((await fetch(endpoint, { method: "POST" })).status).toBe(403);
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: { Authorization: "Bearer test-access-token" },
+    });
+    expect(await response.clone().json()).toEqual({ version: bridgeProtocolVersion });
+    await expect(requireBridgeCompatibility(response)).resolves.toBeUndefined();
+  });
+
   it("rejects requests without the development token", async () => {
     const response = await fetch(url, { method: "POST", body });
     expect(response.status).toBe(403);

@@ -24,6 +24,7 @@ export function TaskWorkbench({
   sandboxId,
   ready,
   status,
+  restoring,
   canResume,
   onStart,
   onStartPreview,
@@ -35,6 +36,7 @@ export function TaskWorkbench({
   sandboxId?: string | null;
   ready: boolean;
   status?: string;
+  restoring?: boolean;
   canResume: boolean;
   onStart: () => Promise<boolean>;
   onStartPreview: () => Promise<boolean>;
@@ -138,6 +140,7 @@ export function TaskWorkbench({
                 <OfflineWorkspace
                   view={view}
                   status={status}
+                  restoring={restoring}
                   canResume={canResume}
                   startDisabled={view === "preview" && !canStartPreview}
                   onStart={async () => {
@@ -170,12 +173,14 @@ export function TaskWorkbench({
 function OfflineWorkspace({
   view,
   status,
+  restoring,
   canResume,
   onStart,
   startDisabled,
 }: {
   view: View;
   status?: string;
+  restoring?: boolean;
   canResume: boolean;
   onStart: () => Promise<boolean>;
   startDisabled: boolean;
@@ -202,8 +207,12 @@ function OfflineWorkspace({
         {status === "stopping"
           ? "Saving workspace…"
           : busy
-            ? "Starting sandbox…"
-            : "Workspace is offline"}
+            ? restoring
+              ? "Restoring workspace…"
+              : "Starting sandbox…"
+            : status === "failed"
+              ? "Workspace startup failed"
+              : "Workspace is offline"}
       </h3>
       <p>
         {status === "stopping"

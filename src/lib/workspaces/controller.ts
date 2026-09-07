@@ -4,6 +4,7 @@ import {
   workspaceLifetimeMs,
 } from "../../../bridge/contracts";
 import { defaultAgentSelection } from "../../../bridge/agent-selection";
+import { WorkspaceBridgeVersionError } from "../../../bridge/protocol";
 import type { WorkspaceViewCommand } from "../../../bridge/workspace-view-contracts";
 import type {
   AgentCommand,
@@ -39,6 +40,7 @@ export interface WorkspaceRecord extends Workspace {
   browserReady?: boolean;
   browserProfileAt?: number;
   browserSaveBlocked?: boolean;
+  setupFailure?: string;
 }
 
 function publicWorkspace(record: WorkspaceRecord): Workspace {
@@ -59,6 +61,7 @@ function publicWorkspace(record: WorkspaceRecord): Workspace {
     browserReady: _browserReady,
     browserProfileAt: _browserProfileAt,
     browserSaveBlocked: _browserSaveBlocked,
+    setupFailure: _setupFailure,
     ...workspace
   } = record;
   return workspace;
@@ -266,6 +269,7 @@ export class WorkspaceController {
         attempts: 0,
         retryAt: 0,
         stopRequestedAt: undefined,
+        setupFailure: undefined,
         idleSince: undefined,
         browserLease: undefined,
         browserReady: false,
@@ -562,7 +566,11 @@ export class WorkspaceController {
       if ((await this.record(record.id)).status === "stopping") return;
       await this.restoreBrowser(record);
       if ((await this.record(record.id)).status === "stopping") return;
-      result = await provider.execute({ action: "start", name: sandboxName(record) });
+      result = await provider.execute({
+        action: "start",
+        name: sandboxName(record),
+        repository: record.repository,
+      });
     } else {
       const token = await this.dependencies.checkoutToken(repository);
       try {
@@ -706,7 +714,8 @@ export class WorkspaceController {
       restoring: false,
       error:
         record.terminalStatus === "failed"
-          ? "Workspace setup failed. Saved history and earlier checkpoints are preserved."
+          ? record.setupFailure ||
+            "Workspace setup failed. Saved history and earlier checkpoints are preserved."
           : null,
     });
   }
@@ -736,17 +745,26 @@ export class WorkspaceController {
           const latest = await this.record(record.id);
           if (latest.status === "stopping") await this.stopping(latest);
         }
-      } catch {
+      } catch (error) {
         const latest = await this.record(record.id);
+        console.error("Workspace operation failed", {
+          taskId: latest.id,
+          runId: owner(latest).runId,
+          phase: latest.phase,
+          message: error instanceof Error ? error.message : "Unknown error",
+        });
         const attempts = latest.attempts + 1;
-        const failedSetup = latest.status === "provisioning" && attempts >= 3;
+        const incompatible = error instanceof WorkspaceBridgeVersionError;
+        const failedSetup = latest.status === "provisioning" && (incompatible || attempts >= 3);
         await this.patch(latest, {
           attempts,
           retryAt: Date.now() + Math.min(60_000, 2000 * 2 ** Math.min(attempts - 1, 5)),
           status: failedSetup ? "stopping" : latest.status,
           terminalStatus: failedSetup ? "failed" : latest.terminalStatus,
-          error:
-            latest.status === "ready" || latest.status === "stopping"
+          setupFailure: incompatible ? error.message : latest.setupFailure,
+          error: incompatible
+            ? error.message
+            : latest.status === "ready" || latest.status === "stopping"
               ? "Saving or contacting the workspace failed. Retrying; the last successful checkpoint is preserved."
               : "Workspace setup could not finish. Retrying automatically.",
         });

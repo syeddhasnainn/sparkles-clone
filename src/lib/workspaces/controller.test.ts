@@ -5,6 +5,7 @@ import type { WorkspaceDependencies, WorkspaceRecord, WorkspaceStorage } from ".
 import type { AgentSnapshot, CreateWorkspace } from "../../../bridge/contracts";
 import type { BrowserProfileStore } from "./browser-profile-store";
 import type { WorkspaceProvider } from "./provider.server";
+import { WorkspaceBridgeVersionError } from "../../../bridge/protocol";
 
 function harness() {
   const records = new Map<string, WorkspaceRecord>();
@@ -167,6 +168,22 @@ function input(): CreateWorkspace {
 }
 
 describe("workspace lifecycle", () => {
+  it("fails an outdated bridge once and preserves its explanation after cleanup", async () => {
+    const { controller, records, execute } = harness();
+    const workspace = await controller.start("user", input());
+    execute.mockRejectedValueOnce(new WorkspaceBridgeVersionError());
+    await controller.alarm();
+    const record = records.get(`workspace:${workspace.id}`)!;
+    expect(record.status).toBe("stopping");
+    expect(record.attempts).toBe(1);
+    record.retryAt = 0;
+    await controller.alarm();
+    const result = (await controller.list())[0];
+    expect(result.status).toBe("failed");
+    expect(result.error).toContain("workspace service is out of date");
+    expect(execute.mock.calls.filter(([request]) => request.action === "allocate")).toHaveLength(1);
+  });
+
   it("loads the complete saved conversation without waiting for client polling", async () => {
     const { controller, histories, dependencies } = harness();
     const workspace = await controller.start("user", input());
@@ -547,7 +564,11 @@ describe("workspace lifecycle", () => {
       expect.objectContaining({ name: `sparkles-${runId}` }),
       expect.any(ReadableStream),
     );
-    expect(execute).toHaveBeenCalledWith({ action: "start", name: `sparkles-${runId}` });
+    expect(execute).toHaveBeenCalledWith({
+      action: "start",
+      name: `sparkles-${runId}`,
+      repository: task.repository,
+    });
     expect(execute.mock.calls.some(([request]) => request.action === "agent")).toBe(false);
     expect((await controller.list())[0].status).toBe("ready");
   });

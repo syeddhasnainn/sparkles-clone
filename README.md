@@ -74,7 +74,7 @@ Register a GitHub App with these local settings:
 - Leave “Request user authorization (OAuth) during installation” disabled. Account authorization starts from Sparkles before repository installation.
 - Enable redirect on installation updates.
 - Disable webhooks for this integration; access is checked through GitHub when listing repositories.
-- Repository permissions: Metadata read-only and Contents read-only. The sandbox can edit its local checkout; GitHub pushes require separate write access.
+- Repository permissions: Metadata read-only, Contents read and write, and Pull requests read and write. Existing installations must accept added permissions. Checkout tokens remain restricted to Contents read-only; sandbox pushes and PR creation still require an implementation that requests and uses write permissions.
 - Allow installation on any account if other users will try the demo.
 
 Add the app's client ID, client secret, and slug to `.env.local`. Set `GITHUB_REDIRECT_URI` to the callback URL above. Generate `GITHUB_TOKEN_ENCRYPTION_KEY` with `openssl rand -hex 32`. Keep this key stable: it encrypts credentials and project environment variables in D1, and saved cloud-browser profiles in R2. Replacing it requires reconnecting existing accounts, re-entering saved project variables, and clearing saved cloud-browser sessions. Never put GitHub tokens in client code or browser storage.
@@ -163,3 +163,5 @@ Codex permission modes can be selected from the composer before creation or chan
 ### Project environment variables
 
 Settings → Projects lets each user manage variables for a GitHub repository. Values are encrypted in D1, masked in the editor, and injected through Modal Secrets when a new or resumed sandbox is allocated. Running workspaces keep their current values until the next start. Paste `.env` contents into a name field to import multiple values; runtime-reserved names are rejected. Apply migration `0005_project_environments.sql` alongside the application update.
+
+Workspace startup uses the connected GitHub account to authorize the selected repository, installs `gh`, and configures Git with the connected user’s noreply identity. Each run receives a short-lived installation token scoped to that repository; write access is requested only when the connected user has push permission. Tokens are encrypted in D1 for revocation when the workspace stops. Sandbox credentials live outside repository checkpoints and are renewed on resume. Apply D1 migrations when updating the worker and update the bridge alongside it.

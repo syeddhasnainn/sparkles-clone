@@ -13,6 +13,7 @@ import {
 } from "./contracts.ts";
 import type { SandboxProvider } from "./modal-provider.ts";
 import { relayChatGPTResponse } from "./chatgpt-relay.ts";
+import { bridgeProtocolVersion } from "./protocol.ts";
 
 export function createBridgeServer(
   provider: SandboxProvider,
@@ -40,6 +41,7 @@ export function createBridgeServer(
       request.method !== "POST" ||
       ![
         "/workspace",
+        "/capabilities",
         "/checkpoint",
         "/restore",
         "/browser/capture",
@@ -56,6 +58,10 @@ export function createBridgeServer(
       return;
     }
     try {
+      if (request.url === "/capabilities") {
+        response.end(JSON.stringify({ version: bridgeProtocolVersion }));
+        return;
+      }
       if (request.url === "/chatgpt/responses") {
         await relayChatGPTResponse(request, response, fetchUpstream);
         return;
@@ -198,7 +204,11 @@ export function createBridgeServer(
       response.end(
         JSON.stringify(await run(parsed.data.name, () => provider.execute(parsed.data))),
       );
-    } catch {
+    } catch (error) {
+      console.error("Workspace bridge operation failed", {
+        path: request.url,
+        message: error instanceof Error ? error.message : "Unknown error",
+      });
       if (response.headersSent) response.destroy();
       else response.writeHead(502).end('{"error":"Workspace provider unavailable"}');
     }
