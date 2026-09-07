@@ -2,7 +2,7 @@ import { AppIcon } from "../ui/app-icon";
 import { useCallback, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import Check from "@hugeicons/core-free-icons/Tick02Icon";
-import Lock from "@hugeicons/core-free-icons/LockKeyIcon";
+import { DashboardIcon } from "./dashboard-icon";
 import Search from "@hugeicons/core-free-icons/Search01Icon";
 import { Button } from "@/components/ui/button";
 import { usePaginatedItems } from "@/hooks/use-paginated-items";
@@ -23,18 +23,11 @@ function RepositoryOption({
       type="button"
       onClick={() => onSelect(repo)}
       aria-pressed={selected}
-      className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-xs hover:bg-accent focus-visible:bg-accent focus-visible:outline-none"
+      title={`${repo.name}${repo.private ? " · Private" : ""}${repo.archived ? " · Archived" : ""}`}
+      className="flex h-9 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-sm hover:bg-accent focus-visible:bg-accent focus-visible:outline-none"
     >
-      <span className="min-w-0 flex-1">
-        <span className="block truncate">{repo.name}</span>
-        <span className="text-[11px] text-muted-foreground">
-          {repo.defaultBranch}
-          {repo.archived ? " · Archived" : ""}
-        </span>
-      </span>
-      {repo.private && (
-        <AppIcon icon={Lock} className="size-3 shrink-0" aria-label="Private repository" />
-      )}
+      <DashboardIcon name="github" size={15} />
+      <span className="min-w-0 flex-1 truncate">{repo.name.split("/").at(-1)}</span>
       {selected && <AppIcon icon={Check} className="size-3.5 shrink-0" />}
     </button>
   );
@@ -78,17 +71,19 @@ export function InstallationRepositories({
 
   return (
     <>
-      <label className="mx-3 mt-2 flex items-center gap-2 rounded-md border border-input px-2 text-muted-foreground">
-        <AppIcon icon={Search} className="size-3.5" />
-        <input
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          placeholder="Filter loaded repositories…"
-          aria-label="Filter loaded repositories"
-          className="h-8 min-w-0 flex-1 bg-transparent text-xs text-foreground outline-none"
-        />
-      </label>
-      <div className="max-h-72 overflow-y-auto p-2">
+      {(repositories.items.length > 6 || repositories.hasMore) && (
+        <label className="mx-2 mb-1 flex items-center gap-2 text-muted-foreground">
+          <AppIcon icon={Search} className="size-3.5" />
+          <input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search repositories…"
+            aria-label="Filter loaded repositories"
+            className="h-8 min-w-0 flex-1 bg-transparent text-xs text-foreground outline-none"
+          />
+        </label>
+      )}
+      <div className="max-h-80 overflow-y-auto">
         {filtered.length === 0 && (
           <p className="p-3 text-xs text-muted-foreground">
             {search

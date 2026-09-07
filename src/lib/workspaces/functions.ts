@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
 import { env } from "cloudflare:workers";
 import { z } from "zod";
+import { requireChatGPTModel } from "../chatgpt/models";
 import { agentCommandSchema, createWorkspaceSchema } from "../../../bridge/contracts";
 import { requireGitHubUser } from "../github/service.server";
 import { authorizeRepository } from "./github.server";
@@ -23,6 +24,8 @@ export const createWorkspace = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { userId } = await requireGitHubUser();
     if (!configured()) throw new Error("Workspace hosting has not been configured yet.");
+    if (data.selection?.provider === "chatgpt")
+      await requireChatGPTModel(env, userId, data.selection.model);
     const repository = await authorizeRepository(userId, data.repository);
     const workspace = await env.WORKSPACES.getByName(userId).start(userId, { ...data, repository });
     return { id: workspace.id };

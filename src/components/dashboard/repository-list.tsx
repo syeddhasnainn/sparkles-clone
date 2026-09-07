@@ -1,8 +1,6 @@
 import { useCallback, useState } from "react";
-import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { Button } from "@/components/ui/button";
-import { buttonVariants } from "@/components/ui/button-variants";
 import { usePaginatedItems } from "@/hooks/use-paginated-items";
 import { listGitHubInstallations, type GitHubRepository } from "@/lib/github/functions";
 import { InstallationRepositories } from "./installation-repositories";
@@ -34,14 +32,14 @@ export function RepositoryList({
 
   return (
     <>
-      {accounts.items.length > 0 && (
-        <div className="px-3 pt-3">
+      {(accounts.items.length > 1 || accounts.hasMore) && (
+        <div className="px-2 pb-2">
           <label className="sr-only" htmlFor="github-account">
             GitHub account or organization
           </label>
           <select
             id="github-account"
-            className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
+            className="h-8 w-full rounded-lg border border-input bg-background px-2 text-xs"
             value={installationId}
             disabled={accounts.loadingMore}
             onChange={(event) => setChosenId(Number(event.target.value))}
@@ -72,7 +70,10 @@ export function RepositoryList({
       {accounts.status === "error" && <RepositoryLoadError onRetry={accounts.retry} />}
       {accounts.status === "ready" && !installationId && (
         <p className="p-3 text-xs leading-relaxed text-muted-foreground">
-          Install the Sparkles GitHub App to choose which repositories you want to connect.
+          Connect repositories with the Sparkles GitHub App.{" "}
+          <a href={installationUrl} className="underline underline-offset-2">
+            Manage access
+          </a>
         </p>
       )}
       {installationId && (
@@ -83,17 +84,6 @@ export function RepositoryList({
           onSelect={onSelect}
         />
       )}
-      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border p-2">
-        <a href={installationUrl} className={buttonVariants({ variant: "ghost", size: "xs" })}>
-          Manage repository access
-        </a>
-        <Link
-          to="/app/settings/integrations"
-          className={buttonVariants({ variant: "ghost", size: "xs" })}
-        >
-          Settings
-        </Link>
-      </div>
     </>
   );
 }

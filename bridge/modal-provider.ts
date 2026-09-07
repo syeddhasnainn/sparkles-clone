@@ -5,6 +5,7 @@ import { agentRunnerSource } from "./agent-runner-source.ts";
 import { runnerRequest } from "./agent-transport.ts";
 import { workspaceView, revokeWorkspaceViews } from "./workspace-views.ts";
 import { createCheckpointScript, restoreCheckpointScript } from "./checkpoint-scripts.ts";
+import { codexPolicyBuildCommand } from "./codex-policy.ts";
 import { checkpointMetadataSchema, agentSnapshotSchema } from "./contracts.ts";
 import type { CheckpointArchive, CheckpointRequest, RestoreRequest } from "./contracts.ts";
 import { checkoutScript } from "./checkout.ts";
@@ -47,7 +48,8 @@ export class ModalProvider implements SandboxProvider {
         .dockerfileCommands([
           "RUN apt-get update && apt-get install -y --no-install-recommends python3 chromium xvfb x11vnc novnc websockify openbox x11-utils x11-xserver-utils xterm fonts-liberation && rm -rf /var/lib/apt/lists/*",
           "RUN npm install --global pnpm@12.0.0",
-          "RUN npm install --global opencode-ai@1.18.29",
+          "RUN npm install --global opencode-ai@1.18.29 @agentclientprotocol/codex-acp@1.10.0 @openai/codex@0.153.3",
+          codexPolicyBuildCommand,
           "RUN npm install --prefix /opt/sparkles @agentclientprotocol/sdk@1.4.0",
         ]);
 

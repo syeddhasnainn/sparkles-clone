@@ -5,8 +5,13 @@ import { Readable } from "node:stream";
 import { once } from "node:events";
 import { bridgeRequestSchema, checkpointRequestSchema, restoreRequestSchema } from "./contracts.ts";
 import type { SandboxProvider } from "./modal-provider.ts";
+import { relayChatGPTResponse } from "./chatgpt-relay.ts";
 
-export function createBridgeServer(provider: SandboxProvider, token?: string) {
+export function createBridgeServer(
+  provider: SandboxProvider,
+  token?: string,
+  fetchUpstream = fetch,
+) {
   const operations = new Map<string, Promise<void>>();
   const run = async <T>(name: string, callback: () => Promise<T>): Promise<T> => {
     const previous = operations.get(name) ?? Promise.resolve();
@@ -26,7 +31,7 @@ export function createBridgeServer(provider: SandboxProvider, token?: string) {
     response.setHeader("Content-Type", "application/json");
     if (
       request.method !== "POST" ||
-      !["/workspace", "/checkpoint", "/restore"].includes(request.url || "")
+      !["/workspace", "/checkpoint", "/restore", "/chatgpt/responses"].includes(request.url || "")
     ) {
       response.writeHead(404).end('{"error":"Not found"}');
       return;
@@ -36,6 +41,10 @@ export function createBridgeServer(provider: SandboxProvider, token?: string) {
       return;
     }
     try {
+      if (request.url === "/chatgpt/responses") {
+        await relayChatGPTResponse(request, response, fetchUpstream);
+        return;
+      }
       if (request.url === "/restore") {
         if (!provider.restore) throw new Error("Restore unavailable");
         const header = request.headers["x-sparkles-restore"];

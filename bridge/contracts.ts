@@ -1,4 +1,7 @@
 import { z } from "zod";
+import { agentSelectionSchema, reasoningEffortSchema } from "./agent-selection.ts";
+import type { AgentSelection } from "./agent-selection.ts";
+import { permissionModeSchema, permissionModesSchema } from "./permission-modes.ts";
 import {
   workspaceViewCommandSchema,
   workspaceViewResultSchema,
@@ -18,6 +21,7 @@ export const repositorySchema = z.object({
 });
 
 export const createWorkspaceSchema = z.object({
+  selection: agentSelectionSchema.optional(),
   requestId: z.uuid(),
   prompt: z.string().trim().min(1).max(20_000),
   repository: repositorySchema,
@@ -31,6 +35,7 @@ export const agentCommandSchema = z.discriminatedUnion("kind", [
     prompt: z.string().trim().min(1).max(20_000),
   }),
   z.object({ kind: z.literal("cancel") }),
+  z.object({ kind: z.literal("set_permission_mode"), modeId: permissionModeSchema }),
   z.object({ kind: z.literal("permission"), id: z.uuid(), optionId: z.string().min(1).max(256) }),
 ]);
 export const agentEventSchema = z.object({
@@ -49,6 +54,7 @@ export const agentStatusSchema = z.enum([
   "interrupted",
 ]);
 export const agentSnapshotSchema = z.object({
+  permissionModes: permissionModesSchema.optional(),
   status: agentStatusSchema,
   sessionId: z.string().nullable().optional(),
   events: z.array(agentEventSchema),
@@ -83,6 +89,11 @@ export type AgentCommand = z.infer<typeof agentCommandSchema>;
 export type AgentSnapshot = z.infer<typeof agentSnapshotSchema>;
 
 export const modelGatewaySchema = z.object({
+  permissionMode: permissionModeSchema.optional(),
+  reasoningEffort: reasoningEffortSchema.optional(),
+  contextWindow: z.number().int().positive().optional(),
+  agent: z.enum(["opencode", "codex"]).optional(),
+  provider: z.enum(["openrouter", "chatgpt"]).optional(),
   url: z.url(),
   token: z.string().min(1).max(256),
   model: z.string().min(1),
@@ -139,6 +150,7 @@ export type BridgeRequest = z.infer<typeof bridgeRequestSchema>;
 export type BridgeResponse = z.infer<typeof bridgeResponseSchema>;
 
 export interface Workspace {
+  selection?: AgentSelection;
   id: string;
   prompt: string;
   repository: Repository;

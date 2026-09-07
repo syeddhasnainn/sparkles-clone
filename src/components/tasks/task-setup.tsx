@@ -1,3 +1,4 @@
+import { agentName } from "../../../bridge/agent-selection";
 import type { Workspace } from "../../../bridge/contracts";
 
 export function TaskSetup({
@@ -17,12 +18,15 @@ export function TaskSetup({
   const steps = [
     "Preparing sandbox",
     workspace.restoring ? "Restoring saved files" : "Checking repository",
-    "Starting OpenCode",
+    `Starting ${agentName(workspace.selection?.agent)}`,
     workspace.restoring ? "Restoring conversation" : "Starting task",
   ];
   return (
     <p className="task-setup-current" role="status">
-      {steps[Math.max(0, stage)]}…
+      {workspace.status === "ready" && workspace.phase === "agent"
+        ? "Finishing workspace setup"
+        : steps[Math.max(0, stage)]}
+      …
     </p>
   );
 }

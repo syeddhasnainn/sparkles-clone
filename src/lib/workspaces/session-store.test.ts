@@ -31,12 +31,18 @@ const snapshot = (status: AgentSnapshot["status"] = "idle"): AgentSnapshot => ({
   ],
 });
 beforeAll(async () => {
-  const sql = await readFile(
-    new URL("../../../migrations/0002_agent_sessions.sql", import.meta.url),
-    "utf8",
-  );
-  for (const statement of sql.split(";").filter((statement) => statement.trim()))
-    await db.prepare(statement).run();
+  for (const migration of [
+    "0002_agent_sessions.sql",
+    "0003_model_gateway.sql",
+    "0004_chatgpt_connections.sql",
+  ]) {
+    const sql = await readFile(
+      new URL(`../../../migrations/${migration}`, import.meta.url),
+      "utf8",
+    );
+    for (const statement of sql.split(";").filter((statement) => statement.trim()))
+      await db.prepare(statement).run();
+  }
 });
 beforeEach(async () => {
   await db.prepare("DELETE FROM agent_sessions").run();
@@ -139,4 +145,20 @@ describe("durable agent sessions", () => {
     expect(history.events[0].type).toBe("interrupted");
     expect(history.status).toBe("interrupted");
   });
+});
+
+it("returns the latest permission mode even after its event cursor was consumed", async () => {
+  const modes = {
+    currentModeId: "agent",
+    availableModes: [{ id: "read-only" }, { id: "agent" }],
+  };
+  await store.saveEvents(owner, {
+    status: "idle",
+    cursor: 1,
+    head: 1,
+    events: [{ id: 1, type: "permission_modes", data: modes }],
+  });
+  const recovered = await createSessionStore(db).read(owner, 1);
+  expect(recovered.events).toEqual([]);
+  expect(recovered.permissionModes).toEqual(modes);
 });

@@ -1,21 +1,21 @@
+import { PermissionPicker } from "./permission-picker";
+import { permissionModeOptions } from "../../../bridge/permission-modes";
+import type { PermissionMode, PermissionModes } from "../../../bridge/permission-modes";
+import { ReasoningPicker } from "./reasoning-picker";
+import { AgentPicker } from "./agent-picker";
+import type { AgentSelection } from "../../../bridge/agent-selection";
 import { AppIcon } from "../ui/app-icon";
 import { useId, useRef, useState, type ReactNode } from "react";
 import ArrowUp from "@hugeicons/core-free-icons/ArrowUp02Icon";
-import Check from "@hugeicons/core-free-icons/Tick02Icon";
-import ChevronDown from "@hugeicons/core-free-icons/ArrowDown01Icon";
 import Circle from "@hugeicons/core-free-icons/CircleIcon";
 import FileCode from "@hugeicons/core-free-icons/DocumentCodeIcon";
 import FileText from "@hugeicons/core-free-icons/File01Icon";
 import Folder from "@hugeicons/core-free-icons/Folder01Icon";
-import Gauge from "@hugeicons/core-free-icons/DashboardSpeed01Icon";
 import WorkflowCircle04Icon from "@hugeicons/core-free-icons/WorkflowCircle04Icon";
 import Image from "@hugeicons/core-free-icons/Image01Icon";
 import ListChecks from "@hugeicons/core-free-icons/Task01Icon";
-import Mic from "@hugeicons/core-free-icons/Mic01Icon";
 import Plus from "@hugeicons/core-free-icons/Add01Icon";
 import Presentation from "@hugeicons/core-free-icons/Presentation01Icon";
-import Search from "@hugeicons/core-free-icons/Search01Icon";
-import ShieldCheck from "@hugeicons/core-free-icons/ShieldKeyIcon";
 import Sheet from "@hugeicons/core-free-icons/Table01Icon";
 import Square from "@hugeicons/core-free-icons/StopIcon";
 import Target from "@hugeicons/core-free-icons/Target01Icon";
@@ -23,6 +23,13 @@ import { AttachmentTile } from "../composer-parts";
 import { ComposerMenu } from "./composer-menu";
 
 interface ComposerPanelProps {
+  selection?: AgentSelection;
+  permissionModes?: PermissionModes;
+  onPermissionModeChange?: (modeId: PermissionMode) => Promise<boolean>;
+  permissionModeDisabled?: boolean;
+  permissionModeUnavailableReason?: string;
+  onSelectionChange?: (selection: AgentSelection) => void;
+  chatGPTConnected?: boolean;
   value: string;
   onChange: (value: string) => void;
   onSubmit: () => void;
@@ -69,6 +76,13 @@ const attachmentKinds = [
 ];
 
 export function ComposerPanel({
+  selection,
+  permissionModes,
+  onPermissionModeChange,
+  permissionModeDisabled,
+  permissionModeUnavailableReason,
+  onSelectionChange,
+  chatGPTConnected,
   value,
   onChange,
   onSubmit,
@@ -178,7 +192,7 @@ export function ComposerPanel({
             <ComposerMenu
               label="Add to chat"
               className="composer-circle attach-button"
-              trigger={<AppIcon icon={Plus} size={20} />}
+              trigger={<AppIcon icon={Plus} size={16} />}
             >
               <button
                 className="composer-menu-item"
@@ -227,77 +241,43 @@ export function ComposerPanel({
                 </button>
               ))}
             </ComposerMenu>
-            <ComposerMenu
-              label="Permissions"
-              className="composer-permission"
-              trigger={
-                <>
-                  <AppIcon icon={ShieldCheck} size={16} />
-                  <span>Manual</span>
-                </>
+            <PermissionPicker
+              agent={selection?.agent}
+              modes={
+                permissionModes ??
+                (onSelectionChange &&
+                selection?.provider === "chatgpt" &&
+                selection.agent === "codex"
+                  ? {
+                      currentModeId: selection.permissionMode ?? "read-only",
+                      availableModes: permissionModeOptions,
+                    }
+                  : undefined)
               }
-            >
-              <button className="composer-menu-item" type="button" disabled>
-                <AppIcon icon={Gauge} size={20} />
-                <span>
-                  Auto<small>Automatic permissions are not available</small>
-                </span>
-              </button>
-              <div className="composer-menu-item" aria-current="true">
-                <AppIcon icon={WorkflowCircle04Icon} size={20} />
-                <span>
-                  Manual<small>Always ask before making a change</small>
-                </span>
-                <AppIcon icon={Check} size={16} />
-              </div>
-              <button className="composer-menu-item" type="button" disabled>
-                <AppIcon icon={ListChecks} size={20} />
-                <span>
-                  Plan mode<small>Plan mode is not available yet</small>
-                </span>
-              </button>
-              <button className="composer-menu-item" type="button" disabled>
-                <AppIcon icon={ShieldCheck} size={20} />
-                <span>
-                  Bypass all<small>This workspace requires permission</small>
-                </span>
-              </button>
-            </ComposerMenu>
+              onChange={
+                onPermissionModeChange ??
+                (onSelectionChange &&
+                selection?.provider === "chatgpt" &&
+                selection.agent === "codex"
+                  ? (permissionMode) => {
+                      onSelectionChange({ ...selection, permissionMode });
+                      return true;
+                    }
+                  : undefined)
+              }
+              disabled={busy || permissionModeDisabled}
+              unavailableReason={permissionModeUnavailableReason}
+              running={running}
+            />
           </div>
           <div className="composer-actions">
-            <ComposerMenu
-              label="Models"
-              className="composer-model"
-              trigger={
-                <>
-                  <span>OpenCode</span>
-                  <AppIcon icon={ChevronDown} size={18} />
-                </>
-              }
-            >
-              <div className="composer-model-search">
-                <AppIcon icon={Search} size={16} />
-                <span>Workspace model</span>
-              </div>
-              <div className="composer-menu-item" aria-current="true">
-                <span>
-                  OpenCode<small>Configured workspace model</small>
-                </span>
-                <AppIcon icon={Check} size={16} />
-              </div>
-              <p className="composer-menu-note">
-                Model selection is managed by the workspace configuration.
-              </p>
-            </ComposerMenu>
-            <ComposerMenu
-              label="Voice input"
-              className="composer-circle composer-mic"
-              trigger={<AppIcon icon={Mic} size={20} />}
-            >
-              <p className="composer-menu-note">
-                Voice transcription is not connected yet. You can type or paste your message.
-              </p>
-            </ComposerMenu>
+            <AgentPicker
+              selection={selection}
+              onChange={onSelectionChange}
+              connected={chatGPTConnected}
+              disabled={busy}
+            />
+            <ReasoningPicker selection={selection} onChange={onSelectionChange} disabled={busy} />
             {running ? (
               <button
                 className="send-button"
@@ -315,7 +295,7 @@ export function ComposerPanel({
                 aria-label={sendLabel}
                 disabled={sendDisabled || busy || attachments.length > 0}
               >
-                <AppIcon icon={ArrowUp} size={20} />
+                <AppIcon icon={ArrowUp} size={16} />
               </button>
             )}
           </div>

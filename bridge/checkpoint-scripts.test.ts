@@ -33,17 +33,19 @@ async function python(script: string, root: string, input: Uint8Array | string, 
   if (code !== 0) throw new Error(error || "Checkpoint process failed");
   return output;
 }
-async function fixture() {
+async function fixture(agent = "opencode") {
+  const agentPath = agent === "codex" ? "codex" : "data/opencode";
   const root = await mkdtemp(join(tmpdir(), "sparkles-checkpoint-test-"));
   paths.push(root);
   await mkdir(join(root, "repo"));
-  await mkdir(join(root, ".sparkles", "data", "opencode"), { recursive: true });
+  await mkdir(join(root, ".sparkles", agentPath), { recursive: true });
   await writeFile(join(root, "repo", "note.txt"), "before checkpoint");
   await symlink("note.txt", join(root, "repo", "note-link"));
   await writeFile(join(root, "checkout.json"), JSON.stringify({ commit: "a".repeat(40) }));
   await writeFile(
     join(root, ".sparkles", "runner-state.json"),
     JSON.stringify({
+      agent,
       status: "checkpointing",
       sessionId: "session-test",
       sequence: 7,
@@ -52,11 +54,13 @@ async function fixture() {
     }),
   );
   await writeFile(
-    join(root, ".sparkles", "data", "opencode", "auth.json"),
+    join(root, ".sparkles", agentPath, "auth.json"),
     "credentials-must-not-be-archived",
   );
   await python(
-    "import os,subprocess,sqlite3;root=os.environ['SPARKLES_WORKSPACE_ROOT'];subprocess.run(['git','init','-q',root+'/repo'],check=True);db=sqlite3.connect(root+'/.sparkles/data/opencode/opencode.db');db.execute('CREATE TABLE session (id TEXT)');db.execute(\"INSERT INTO session VALUES ('session-test')\");db.commit()",
+    "import os,subprocess,sqlite3;root=os.environ['SPARKLES_WORKSPACE_ROOT'];subprocess.run(['git','init','-q',root+'/repo'],check=True);db=sqlite3.connect(root+'/.sparkles/" +
+      agentPath +
+      "/opencode.db');db.execute('CREATE TABLE session (id TEXT)');db.execute(\"INSERT INTO session VALUES ('session-test')\");db.commit()",
     root,
     "",
   );
@@ -111,6 +115,23 @@ describe("workspace checkpoint archives", () => {
     expect(await readFile(join(restored, "repo", "note.txt"), "utf8")).toBe(
       "new work after restore",
     );
+  });
+  it("restores Codex session data to its isolated home without authentication files", async () => {
+    const saved = await fixture("codex");
+    const restored = await mkdtemp(join(tmpdir(), "sparkles-codex-restored-test-"));
+    paths.push(restored);
+    await restore(restored, saved.metadata, saved.bytes);
+    const state = JSON.parse(
+      await readFile(join(restored, ".sparkles", "runner-state.json"), "utf8"),
+    );
+    expect(state.agent).toBe("codex");
+    const session = await python(
+      "import os,sqlite3;print(sqlite3.connect(os.environ['SPARKLES_WORKSPACE_ROOT']+'/.sparkles/codex/opencode.db').execute('SELECT id FROM session').fetchone()[0])",
+      restored,
+      "",
+    );
+    expect(session.trim()).toBe("session-test");
+    await expect(readFile(join(restored, ".sparkles", "codex", "auth.json"))).rejects.toThrow();
   });
   it("rejects corrupt archives and refuses to overwrite an existing checkout", async () => {
     const saved = await fixture();

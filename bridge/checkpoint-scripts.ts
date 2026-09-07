@@ -10,7 +10,8 @@ if runner.get('status') != 'checkpointing' or runner.get('sessionId') != request
 staging = pathlib.Path(tempfile.mkdtemp(prefix='sparkles-checkpoint-'))
 archive = pathlib.Path('/tmp/sparkles-checkpoint-' + request['id'] + '.tar.gz')
 try:
-    source = state_root / 'data' / 'opencode'
+    agent_kind = runner.get('agent', 'opencode')
+    source = state_root / 'codex' if agent_kind == 'codex' else state_root / 'data' / 'opencode'
     target = staging / 'agent'
     target.mkdir()
     copied_bytes = 0
@@ -20,7 +21,7 @@ try:
             dirs[:] = [d for d in dirs if d not in ('log', 'logs', 'cache') and not pathlib.Path(directory, d).is_symlink()]
             for name in files:
                 origin = pathlib.Path(directory, name)
-                if origin.is_symlink() or name == 'auth.json' or name.endswith(('-wal', '-shm', '.lock')):
+                if origin.is_symlink() or name in ('auth.json', 'config.toml', 'log.json', 'history.jsonl') or name.endswith(('-wal', '-shm', '.lock')):
                     continue
                 copied_bytes += origin.stat().st_size
                 copied_files += 1
@@ -182,7 +183,8 @@ try:
     state['acknowledged'] = request['cursor']
     state_root = root / '.sparkles'
     (state_root / 'data').mkdir(parents=True, mode=0o700)
-    os.rename(staging / 'agent', state_root / 'data' / 'opencode')
+    agent_destination = state_root / 'codex' if state.get('agent', 'opencode') == 'codex' else state_root / 'data' / 'opencode'
+    os.rename(staging / 'agent', agent_destination)
     (state_root / 'runner-state.json').write_text(json.dumps(state))
     os.chmod(state_root / 'runner-state.json', 0o600)
     os.rename(staging / 'repo', root / 'repo')

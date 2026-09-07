@@ -41,25 +41,17 @@
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  padding: 0 8px;
-  border-bottom: 1px solid var(--border);
+  padding: 0 16px;
 }
 
-.settings-sidebar-header > .icon-button {
-  margin-left: auto;
-}
-
-.settings-sidebar-header .organization-button {
-  margin-left: 8px;
-  margin-right: 0;
-}
-
-.settings-sidebar-header .workspace-switcher {
+.settings-back-link {
+  width: 100%;
   gap: 8px;
 }
 
-.settings-sidebar-header .project-button {
-  padding-left: 0;
+.settings-back-link:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
 }
 
 .settings-navigation {
@@ -107,10 +99,13 @@
   background: var(--sidebar-accent);
 }
 
+.dashboard-header[data-settings] {
+  border-bottom: 0;
+}
+
 .settings-heading {
   flex-shrink: 0;
   padding: 20px 24px;
-  border-bottom: 1px solid var(--border);
   background: var(--sidebar);
 }
 

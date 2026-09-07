@@ -8,6 +8,8 @@ import { client, ndJsonStream } from '@agentclientprotocol/sdk';
 
 const workspaceDirectory = process.env.SPARKLES_WORKSPACE_DIR || '/workspace/repo';
 const stateDirectory = process.env.SPARKLES_STATE_DIR || '/workspace/.sparkles';
+const agentKind = process.env.SPARKLES_AGENT || 'opencode';
+const agentLabel = agentKind === 'codex' ? 'Codex' : 'OpenCode';
 const port = Number(process.env.SPARKLES_AGENT_PORT || 4097);
 mkdirSync(stateDirectory, { recursive: true, mode: 0o700 });
 const statePath = join(stateDirectory, 'runner-state.json');
@@ -26,8 +28,11 @@ let checkpointStatus;
 let checkpointTimer;
 let checkpointId;
 let protocolTurn;
+let permissionModes;
+let changingMode = false;
+const permissionModeIds = ['read-only', 'agent', 'agent-full-access'];
 const persist = () => {
-  const value = { version: 1, sessionId, sequence, acknowledged, requests: [...requests], activeRequest, status };
+  const value = { version: 1, agent: agentKind, sessionId, sequence, acknowledged, requests: [...requests], activeRequest, status, permissionMode: permissionModes?.currentModeId ?? previous.permissionMode };
   writeFileSync(statePath + '.tmp', JSON.stringify(value), { mode: 0o600, flush: true });
   renameSync(statePath + '.tmp', statePath);
 };
@@ -37,6 +42,21 @@ const emit = (type, data) => {
   events.push(event);
   persist();
 };
+const publishPermissionModes = () => {
+  if (permissionModes) emit('permission_modes', permissionModes);
+};
+const restorePermissionModes = async (modes) => {
+  if (agentKind !== 'codex' || !modes) return;
+  const availableModes = modes.availableModes.filter((mode) => permissionModeIds.includes(mode.id)).map(({ id }) => ({ id }));
+  if (!availableModes.some((mode) => mode.id === modes.currentModeId)) throw new Error('Unsupported permission mode');
+  const savedMode = previous.permissionMode;
+  if (savedMode && savedMode !== modes.currentModeId) {
+    if (!availableModes.some((mode) => mode.id === savedMode)) throw new Error('Saved permission mode is unavailable');
+    await agent.request('session/set_mode', { sessionId, modeId: savedMode });
+  }
+  permissionModes = { availableModes, currentModeId: savedMode ?? modes.currentModeId };
+  publishPermissionModes();
+};
 const resolvePermissions = () => {
   for (const [id, permission] of permissions) {
     permission.resolve({ outcome: { outcome: 'cancelled' } });
@@ -44,13 +64,23 @@ const resolvePermissions = () => {
   }
   permissions.clear();
 };
-const child = spawn('opencode', ['acp'], {
+if (agentKind === 'codex') mkdirSync(join(stateDirectory, 'codex'), { recursive: true, mode: 0o700 });
+if (previous.agent && previous.agent !== agentKind) throw new Error('Saved agent does not match this task');
+const child = spawn(agentKind === 'codex' ? 'codex-acp' : 'opencode', agentKind === 'codex' ? [] : ['acp'], {
   cwd: workspaceDirectory,
-  env: { ...process.env, XDG_DATA_HOME: join(stateDirectory, 'data'), XDG_STATE_HOME: join(stateDirectory, 'state') },
+  env: { ...process.env, CODEX_HOME: join(stateDirectory, 'codex'), XDG_DATA_HOME: join(stateDirectory, 'data'), XDG_STATE_HOME: join(stateDirectory, 'state') },
   stdio: ['pipe', 'pipe', 'inherit'],
 });
 const connection = client({ name: 'sparkles' })
-  .onNotification('session/update', ({ params }) => { if (!loadingSession) emit('update', params.update); })
+  .onNotification('session/update', ({ params }) => {
+    if (loadingSession) return;
+    const update = params.update;
+    if (update.sessionUpdate === 'current_mode_update' && permissionModes?.availableModes.some((mode) => mode.id === update.currentModeId)) {
+      permissionModes = { ...permissionModes, currentModeId: update.currentModeId };
+      publishPermissionModes();
+    }
+    emit('update', update);
+  })
   .onRequest('session/request_permission', ({ params }) => {
     if (loadingSession) return { outcome: { outcome: 'cancelled' } };
     return new Promise((resolve) => {
@@ -61,16 +91,23 @@ const connection = client({ name: 'sparkles' })
   })
   .connect(ndJsonStream(Writable.toWeb(child.stdin), Readable.toWeb(child.stdout)));
 const agent = connection.agent;
-child.on('error', () => { status = 'failed'; emit('error', { message: 'OpenCode could not start.' }); });
+child.on('error', () => { status = 'failed'; emit('error', { message: agentLabel + ' could not start.' }); });
 child.on('exit', () => { status = 'failed'; resolvePermissions(); emit('error', { message: 'The agent process stopped. Its saved conversation remains available.' }); });
 
 const ready = (async () => {
-  const initialized = await agent.request('initialize', { protocolVersion: 1, clientCapabilities: {}, clientInfo: { name: 'sparkles', version: '1.0.0' } });
+  const initialized = await agent.request('initialize', { protocolVersion: 1, clientCapabilities: agentKind === 'codex' ? { auth: { _meta: { gateway: true } } } : {}, clientInfo: { name: 'sparkles', version: '1.0.0' } });
   if (initialized.protocolVersion !== 1) throw new Error('Unsupported ACP version');
+  if (agentKind === 'codex') {
+    if (!initialized.authMethods.some(method => method.id === 'gateway')) throw new Error('Codex gateway authentication is unavailable');
+    await agent.request('authenticate', { methodId: 'gateway', _meta: { gateway: { baseUrl: process.env.SPARKLES_MODEL_GATEWAY_URL, headers: { Authorization: 'Bearer ' + process.env.SPARKLES_MODEL_GATEWAY_TOKEN }, providerName: 'Sparkles ChatGPT connection' } } });
+  }
   if (sessionId) {
     if (!initialized.agentCapabilities.loadSession) throw new Error('Agent cannot load saved sessions');
     loadingSession = true;
-    try { await agent.request('session/load', { sessionId, cwd: workspaceDirectory, mcpServers: [] }); }
+    try {
+      const session = await agent.request('session/load', { sessionId, cwd: workspaceDirectory, mcpServers: [] });
+      await restorePermissionModes(session.modes);
+    }
     finally { loadingSession = false; }
     status = 'idle';
     emit('restored', { sessionId, message: 'Workspace and agent context restored. Unfinished operations were not automatically replayed.' });
@@ -80,10 +117,11 @@ const ready = (async () => {
   } else {
     const session = await agent.request('session/new', { cwd: workspaceDirectory, mcpServers: [] });
     sessionId = session.sessionId;
+    await restorePermissionModes(session.modes);
     status = 'idle';
   }
   emit('ready', { sessionId });
-})().catch(() => { status = 'failed'; emit('error', { message: 'OpenCode could not initialize or restore the saved session.' }); });
+})().catch(() => { status = 'failed'; emit('error', { message: agentLabel + ' could not initialize or restore the saved session.' }); });
 
 const releaseCheckpoint = () => {
   clearTimeout(checkpointTimer);
@@ -100,7 +138,7 @@ const snapshot = (cursor) => {
     if (batch.length && (bytes + size > 256 * 1024 || batch.length >= 50)) break;
     batch.push(event); bytes += size;
   }
-  return { status, sessionId: sessionId || null, events: batch, cursor: batch.at(-1)?.id ?? Math.min(cursor, sequence), head: sequence };
+  return { status, permissionModes, sessionId: sessionId || null, events: batch, cursor: batch.at(-1)?.id ?? Math.min(cursor, sequence), head: sequence };
 };
 createServer(async (req, res) => {
   res.setHeader('Content-Type', 'application/json');
@@ -114,7 +152,7 @@ createServer(async (req, res) => {
     const command = JSON.parse(body);
     if (command.kind === 'prepare_checkpoint') {
       await ready;
-      if (!sessionId || protocolTurn || !['idle', 'failed'].includes(status)) throw new Error('Agent is busy');
+      if (!sessionId || protocolTurn || changingMode || !['idle', 'failed'].includes(status)) throw new Error('Agent is busy');
       checkpointStatus = status;
       checkpointId = command.id;
       status = 'checkpointing';
@@ -126,12 +164,21 @@ createServer(async (req, res) => {
     if (command.kind === 'release_checkpoint') {
       if (command.id !== checkpointId) throw new Error('Stale checkpoint release');
       releaseCheckpoint();
+    } else if (command.kind === 'set_permission_mode') {
+      await ready;
+      if (!sessionId || !['idle', 'running'].includes(status) || changingMode || !permissionModes?.availableModes.some((mode) => mode.id === command.modeId)) throw new Error('Permission mode unavailable');
+      changingMode = true;
+      try {
+        await agent.request('session/set_mode', { sessionId, modeId: command.modeId });
+        permissionModes = { ...permissionModes, currentModeId: command.modeId };
+        publishPermissionModes();
+      } finally { changingMode = false; }
     } else if (command.kind === 'prompt') {
       await ready;
       const prior = requests.get(command.requestId);
       if (prior && prior !== command.prompt) throw new Error('Conflicting prompt retry');
       if (!prior) {
-        if (status !== 'idle' || protocolTurn) throw new Error('Agent is not ready');
+        if (status !== 'idle' || protocolTurn || changingMode) throw new Error('Agent is not ready');
         if (typeof command.requestId !== 'string' || typeof command.prompt !== 'string' || !command.prompt.trim() || command.prompt.length > 20000) throw new Error('Invalid prompt');
         requests.set(command.requestId, command.prompt);
         activeRequest = command.requestId;

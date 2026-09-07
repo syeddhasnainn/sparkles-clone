@@ -25,6 +25,19 @@ export function Followup({
   };
   return (
     <ComposerPanel
+      selection={workspace?.selection}
+      permissionModes={agent.snapshot?.permissionModes}
+      onPermissionModeChange={(modeId) => agent.send({ kind: "set_permission_mode", modeId })}
+      permissionModeDisabled={
+        !enabled || !["idle", "running"].includes(agent.snapshot?.status ?? "")
+      }
+      permissionModeUnavailableReason={
+        !enabled
+          ? "Resume the workspace to change permissions."
+          : !agent.snapshot?.permissionModes
+            ? "Permission controls are not loaded. Stop and resume older workspaces to enable them."
+            : undefined
+      }
       value={prompt}
       onChange={setPrompt}
       onSubmit={() => void submit()}

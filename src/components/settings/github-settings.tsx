@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { AppIcon } from "../ui/app-icon";
 import { Link } from "@tanstack/react-router";
 import ExternalLink from "@hugeicons/core-free-icons/LinkSquare02Icon";
@@ -103,14 +104,14 @@ function GitHubConnection() {
   );
 }
 
-export function GitHubSettings({ status }: { status?: string }) {
+export function GitHubSettings({ status, children }: { status?: string; children?: ReactNode }) {
   const notice = notices.get(status ?? "");
 
   return (
     <>
       <SettingsHeading title="Integrations" description="Connect the accounts you use to build." />
       <div className="settings-scroll" data-scroll-restoration-id="settings-content">
-        <div className="settings-content">
+        <div className="settings-content space-y-4">
           {notice && (
             <p role="alert" className="rounded-lg border border-border bg-card p-4 text-sm">
               {notice}
@@ -118,7 +119,7 @@ export function GitHubSettings({ status }: { status?: string }) {
           )}
           <section
             aria-labelledby="github-heading"
-            className="rounded-xl border border-border bg-card p-5 text-card-foreground"
+            className="rounded-lg border border-border bg-card p-5 text-card-foreground"
           >
             <div className="flex items-start gap-3">
               <DashboardIcon name="github" size={24} />
@@ -133,6 +134,7 @@ export function GitHubSettings({ status }: { status?: string }) {
             </div>
             <GitHubConnection />
           </section>
+          {children}
         </div>
       </div>
     </>

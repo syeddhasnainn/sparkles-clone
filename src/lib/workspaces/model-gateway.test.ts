@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { readFile } from "node:fs/promises";
 import { Miniflare, convertV4MiniflareOptions } from "miniflare";
@@ -37,7 +38,11 @@ const request = (token: string, extra = {}) =>
     }),
   });
 beforeAll(async () => {
-  for (const migration of ["0002_agent_sessions.sql", "0003_model_gateway.sql"]) {
+  for (const migration of [
+    "0002_agent_sessions.sql",
+    "0003_model_gateway.sql",
+    "0004_chatgpt_connections.sql",
+  ]) {
     const sql = await readFile(
       new URL(`../../../migrations/${migration}`, import.meta.url),
       "utf8",
@@ -58,9 +63,11 @@ describe("model gateway", () => {
     const agent = createAgentEnvironment(gateway);
     expect(JSON.stringify(agent)).not.toContain(environment.OPENROUTER_API_KEY);
     expect(agent).not.toHaveProperty("OPENROUTER_API_KEY");
-    expect(JSON.parse(agent.OPENCODE_CONFIG_CONTENT).provider.openrouter.options.baseURL).toBe(
-      gateway.url,
-    );
+    expect(
+      JSON.parse(
+        z.object({ OPENCODE_CONFIG_CONTENT: z.string() }).parse(agent).OPENCODE_CONFIG_CONTENT,
+      ).provider.openrouter.options.baseURL,
+    ).toBe(gateway.url);
     const rows = await db.prepare("SELECT * FROM model_gateway_tokens").all();
     expect(JSON.stringify(rows)).not.toContain(gateway.token);
   });
@@ -177,5 +184,148 @@ describe("model gateway", () => {
     expect(
       await (await modelGateway(request(gateway.token), environment, fetchUpstream)).text(),
     ).not.toContain(environment.OPENROUTER_API_KEY);
+  });
+});
+
+describe("ChatGPT subscription gateway", () => {
+  const key = "c".repeat(64);
+  const prepare = async () => {
+    const { encrypt } = await import("../github/crypto");
+    await db.prepare("DELETE FROM chatgpt_connections").run();
+    await db
+      .prepare(
+        "INSERT INTO chatgpt_connections(user_id, id, account_id, credential, expires_at) VALUES (?, ?, ?, ?, ?)",
+      )
+      .bind(
+        owner.userId,
+        "connection-a",
+        "chatgpt-account",
+        await encrypt(
+          JSON.stringify({ access: "private-chatgpt-access", refresh: "private-chatgpt-refresh" }),
+          key,
+          `chatgpt:${owner.userId}:connection-a`,
+        ),
+        Date.now() + 3600000,
+      )
+      .run();
+    await db
+      .prepare("UPDATE agent_sessions SET selection = ? WHERE task_id = ?")
+      .bind(JSON.stringify({ agent: "codex", provider: "chatgpt", model: "gpt-5.4" }), owner.taskId)
+      .run();
+    return issueModelGateway(
+      db,
+      owner.taskId,
+      owner.runId,
+      "https://gateway.example",
+      "openrouter/anthropic/claude-sonnet-4",
+      async () => "connection-a",
+    );
+  };
+  const responseRequest = (token: string) =>
+    new Request("https://gateway.example/api/model/responses", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "gpt-5.4",
+        input: [{ role: "user", content: "Hello" }],
+        max_output_tokens: 500,
+        store: true,
+        stream: true,
+      }),
+    });
+  it("routes native Responses to the pinned ChatGPT account without handing credentials to the runner", async () => {
+    const grant = await prepare();
+    expect(grant.agent).toBe("codex");
+    expect(JSON.stringify(createAgentEnvironment(grant))).not.toContain("private-chatgpt");
+    const upstream = vi.fn<typeof fetch>().mockResolvedValue(new Response("data: test\n\n"));
+    const result = await modelGateway(
+      responseRequest(grant.token),
+      { ...environment, CHATGPT_TOKEN_ENCRYPTION_KEY: key },
+      upstream,
+    );
+    expect(result.status).toBe(200);
+    const [url, init] = upstream.mock.calls[0];
+    expect(url).toBe("https://chatgpt.com/backend-api/codex/responses");
+    expect(new Headers(init?.headers).get("Authorization")).toBe("Bearer private-chatgpt-access");
+    expect(new Headers(init?.headers).get("ChatGPT-Account-Id")).toBe("chatgpt-account");
+    const body = JSON.parse(String(init?.body));
+    expect(body.store).toBe(false);
+    expect(body).not.toHaveProperty("max_output_tokens");
+    expect(
+      (
+        await modelGateway(
+          request(grant.token),
+          { ...environment, CHATGPT_TOKEN_ENCRYPTION_KEY: key },
+          upstream,
+        )
+      ).status,
+    ).toBe(400);
+  });
+  it("sends subscription requests through the authenticated Node bridge by default", async () => {
+    const grant = await prepare();
+    const transport = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response("data: test\n\n"));
+    try {
+      const result = await modelGateway(responseRequest(grant.token), {
+        ...environment,
+        CHATGPT_TOKEN_ENCRYPTION_KEY: key,
+        LOCAL_MODAL_BRIDGE_URL: "http://127.0.0.1:4567",
+        LOCAL_MODAL_BRIDGE_TOKEN: "private-bridge-token",
+      });
+      expect(result.status).toBe(200);
+      const [url, options] = transport.mock.calls[0];
+      expect(url).toBe("http://127.0.0.1:4567/chatgpt/responses");
+      const headers = new Headers(options?.headers);
+      expect(headers.get("Authorization")).toBe("Bearer private-bridge-token");
+      expect(headers.get("X-Sparkles-ChatGPT-Authorization")).toBe("Bearer private-chatgpt-access");
+      expect(headers.get("ChatGPT-Account-Id")).toBe("chatgpt-account");
+    } finally {
+      transport.mockRestore();
+    }
+  });
+  it("preserves ChatGPT rejections so Codex does not retry them as gateway outages", async () => {
+    const grant = await prepare();
+    const upstream = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response("private provider body", {
+        status: 403,
+        headers: { "Content-Type": "text/html" },
+      }),
+    );
+    const result = await modelGateway(
+      responseRequest(grant.token),
+      { ...environment, CHATGPT_TOKEN_ENCRYPTION_KEY: key },
+      upstream,
+    );
+    expect(result.status).toBe(403);
+    const text = await result.text();
+    expect(text).toContain("OpenAI rejected the connection (403)");
+    expect(text).not.toContain("private provider body");
+    expect(upstream).toHaveBeenCalledTimes(1);
+  });
+  it("rejects disconnected accounts and never falls back to the application API key", async () => {
+    const grant = await prepare();
+    await db.prepare("DELETE FROM chatgpt_connections").run();
+    const upstream = vi.fn<typeof fetch>();
+    const result = await modelGateway(
+      responseRequest(grant.token),
+      { ...environment, CHATGPT_TOKEN_ENCRYPTION_KEY: key },
+      upstream,
+    );
+    expect(result.status).toBe(401);
+    expect(upstream).not.toHaveBeenCalled();
+  });
+  it("does not switch a resumed task to a replacement connection", async () => {
+    await prepare();
+    await expect(
+      issueModelGateway(
+        db,
+        owner.taskId,
+        owner.runId,
+        "https://gateway.example",
+        "openrouter/test",
+        async () => "connection-b",
+      ),
+    ).rejects.toThrow("disconnected ChatGPT connection");
   });
 });

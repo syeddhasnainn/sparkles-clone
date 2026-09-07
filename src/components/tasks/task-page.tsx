@@ -1,3 +1,4 @@
+import { agentName } from "../../../bridge/agent-selection";
 import { useContext } from "react";
 import { createPortal } from "react-dom";
 import { TaskHeaderContext } from "../dashboard/dashboard-header";
@@ -48,6 +49,7 @@ export function TaskPage({ taskId }: { taskId: string }) {
               <p role="alert">{error || workspace?.error || agent.error}</p>
             )}
             <Conversation
+              agentKind={workspace?.selection?.agent}
               events={agent.events}
               streaming={workspace?.status === "ready" && agent.snapshot?.status === "running"}
             />
@@ -56,7 +58,7 @@ export function TaskPage({ taskId }: { taskId: string }) {
         </div>
         <div className="task-composer-dock">
           <div className="task-composer-inner">
-            {workspace?.status !== "ready" && (
+            {(workspace?.status !== "ready" || workspace.phase !== "task") && (
               <div className="composer-top-strip">
                 <ComposerAvailability
                   workspace={workspace}
@@ -89,11 +91,13 @@ function statusLabel(workspace: Workspace | undefined, snapshot: AgentSnapshot |
         ? "Restoring your workspace…"
         : "Preparing your workspace…"
       : workspace.status;
-  if (snapshot?.status === "running") return "OpenCode is working";
-  if (snapshot?.status === "idle") return "OpenCode is ready";
+  if (snapshot?.status === "running") return `${agentName(workspace.selection?.agent)} is working`;
+  if (workspace.phase !== "task") return "Finishing workspace setup…";
+  if (snapshot?.status === "idle") return `${agentName(workspace.selection?.agent)} is ready`;
   if (snapshot?.status === "checkpointing") return "Saving workspace…";
-  if (snapshot?.status === "failed") return "OpenCode stopped unexpectedly";
-  return "Starting OpenCode…";
+  if (snapshot?.status === "failed")
+    return `${agentName(workspace.selection?.agent)} stopped unexpectedly`;
+  return `Starting ${agentName(workspace.selection?.agent)}…`;
 }
 
 function ComposerAvailability({
@@ -117,7 +121,14 @@ function ComposerAvailability({
   return (
     <div className="composer-availability">
       <span>{message}</span>
-      {stopped && <WorkspaceAction workspace={workspace} onStop={onStop} onResume={onResume} />}
+      {stopped && (
+        <WorkspaceAction
+          workspace={workspace}
+          onStop={onStop}
+          onResume={onResume}
+          showIcon={false}
+        />
+      )}
     </div>
   );
 }
