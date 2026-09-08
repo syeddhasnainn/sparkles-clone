@@ -64,7 +64,6 @@ export function DashboardSidebar({
           {[
             ["backlog", "Backlog"],
             ["automations", "Automations"],
-            ["history", "History"],
           ].map(([icon, label]) => (
             <button key={icon} className="nav-item" disabled>
               <DashboardIcon name={icon} size={14} />
@@ -74,6 +73,15 @@ export function DashboardSidebar({
               )}
             </button>
           ))}
+          <Link
+            to="/app/history"
+            className="nav-item"
+            activeProps={{ className: "history-nav-active", "aria-current": "page" }}
+            onClick={onNavigate}
+          >
+            <DashboardIcon name="history" size={14} />
+            History
+          </Link>
         </nav>
         <section className="conversation-section" aria-label="Private conversations">
           <h2 className="section-label">Private</h2>
