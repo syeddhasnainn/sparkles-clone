@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppRouteImport } from './routes/app'
 import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as AppIndexRouteImport } from './routes/app.index'
+import { Route as AppHistoryRouteImport } from './routes/app.history'
 import { Route as AppSettingsRouteImport } from './routes/app.settings'
 import { Route as ApiAuthCallbackRouteImport } from './routes/api.auth.callback'
 import { Route as ApiAuthSignInRouteImport } from './routes/api.auth.sign-in'
@@ -44,6 +45,11 @@ const SignInRoute = SignInRouteImport.update({
 const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppHistoryRoute = AppHistoryRouteImport.update({
+  id: '/history',
+  path: '/history',
   getParentRoute: () => AppRoute,
 } as any)
 const AppSettingsRoute = AppSettingsRouteImport.update({
@@ -111,6 +117,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/app': typeof AppRouteWithChildren
   '/sign-in': typeof SignInRoute
+  '/app/history': typeof AppHistoryRoute
   '/app/settings': typeof AppSettingsRouteWithChildren
   '/app/': typeof AppIndexRoute
   '/api/auth/callback': typeof ApiAuthCallbackRoute
@@ -128,6 +135,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/sign-in': typeof SignInRoute
+  '/app/history': typeof AppHistoryRoute
   '/app': typeof AppIndexRoute
   '/api/auth/callback': typeof ApiAuthCallbackRoute
   '/api/auth/sign-in': typeof ApiAuthSignInRoute
@@ -146,6 +154,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/app': typeof AppRouteWithChildren
   '/sign-in': typeof SignInRoute
+  '/app/history': typeof AppHistoryRoute
   '/app/settings': typeof AppSettingsRouteWithChildren
   '/app/': typeof AppIndexRoute
   '/api/auth/callback': typeof ApiAuthCallbackRoute
@@ -166,6 +175,7 @@ export interface FileRouteTypes {
     | '/'
     | '/app'
     | '/sign-in'
+    | '/app/history'
     | '/app/settings'
     | '/app/'
     | '/api/auth/callback'
@@ -183,6 +193,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/sign-in'
+    | '/app/history'
     | '/app'
     | '/api/auth/callback'
     | '/api/auth/sign-in'
@@ -200,6 +211,7 @@ export interface FileRouteTypes {
     | '/'
     | '/app'
     | '/sign-in'
+    | '/app/history'
     | '/app/settings'
     | '/app/'
     | '/api/auth/callback'
@@ -254,6 +266,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/app/'
       preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/history': {
+      id: '/app/history'
+      path: '/history'
+      fullPath: '/app/history'
+      preLoaderRoute: typeof AppHistoryRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/settings': {
@@ -364,12 +383,14 @@ const AppSettingsRouteWithChildren = AppSettingsRoute._addFileChildren(
 )
 
 interface AppRouteChildren {
+  AppHistoryRoute: typeof AppHistoryRoute
   AppSettingsRoute: typeof AppSettingsRouteWithChildren
   AppIndexRoute: typeof AppIndexRoute
   AppTasksTaskIdRoute: typeof AppTasksTaskIdRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppHistoryRoute: AppHistoryRoute,
   AppSettingsRoute: AppSettingsRouteWithChildren,
   AppIndexRoute: AppIndexRoute,
   AppTasksTaskIdRoute: AppTasksTaskIdRoute,

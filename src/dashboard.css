@@ -2244,3 +2244,73 @@
     color: var(--muted-foreground);
   }
 }
+
+.thread-history {
+  width: min(100%, 860px);
+  margin: 0 auto;
+  padding: 32px 24px;
+  overflow-y: auto;
+}
+
+.thread-history h1 {
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.thread-history header p,
+.history-count,
+.history-thread-details {
+  color: var(--muted-foreground);
+  font-size: 13px;
+}
+
+.thread-history header p {
+  margin: 8px 0 24px;
+}
+
+.history-search {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.history-count {
+  margin: 20px 0 8px;
+}
+
+.history-list {
+  list-style: none;
+  padding: 0;
+}
+
+.history-thread {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px 12px;
+  border-bottom: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.history-thread:hover,
+.history-thread:focus-visible {
+  background: var(--sidebar-hover);
+}
+
+.history-thread-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.history-thread-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+
+.history-repository {
+  overflow-wrap: anywhere;
+}
