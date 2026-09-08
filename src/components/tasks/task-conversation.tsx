@@ -161,29 +161,6 @@ export const Conversation = memo(function Conversation({
             data-agent={agentKind}
             aria-label={message.role === "OpenCode" ? agentName(agentKind) : message.role}
           >
-            {message.role === "OpenCode" && agentKind !== "codex" && (
-              <>
-                {agentKind === "opencode" && (
-                  <img className="task-assistant-avatar" src="/brand/opencode.svg" alt="" />
-                )}
-                <div className="task-assistant-meta">
-                  <strong>{agentName(agentKind)}</strong>
-                  {message.timestamp && (
-                    <time
-                      dateTime={new Date(message.timestamp).toISOString()}
-                      title={new Date(message.timestamp).toLocaleString()}
-                      suppressHydrationWarning
-                    >
-                      {new Date(message.timestamp).toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                        hour12: false,
-                      })}
-                    </time>
-                  )}
-                </div>
-              </>
-            )}
             {message.role === "OpenCode" ? (
               <Streamdown
                 className="task-message-markdown"
